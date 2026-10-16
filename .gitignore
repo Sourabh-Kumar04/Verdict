@@ -2,5 +2,8 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+.env
+*.egg-info/
+.muse-worktrees/
 *.log
 .DS_Store
