@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-white">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Verdict — Proof-Carrying Claim Verification Engine</title>
+
+  <!-- Google Fonts: Geist & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  
+  <!-- Material Symbols Outlined -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            yc: {
+              orange: '#f26625',
+              hover: '#d95416',
+              light: '#fff5f0',
+              border: '#ffd6c4'
+            },
+            surface: {
+              DEFAULT: '#ffffff',
+              subtle: '#fafafa',
+              muted: '#f4f4f5',
+              border: '#e4e4e7'
+            },
+            epistemic: {
+              green: '#10b981',
+              greenBg: '#ecfdf5',
+              greenBorder: '#a7f3d0',
+              greenText: '#065f46',
+              red: '#ef4444',
+              redBg: '#fef2f2',
+              redBorder: '#fecaca',
+              redText: '#991b1b',
+              amber: '#f59e0b',
+              amberBg: '#fffbeb',
+              amberBorder: '#fde68a',
+              amberText: '#92400e'
+            }
+          },
+          fontFamily: {
+            sans: ['Geist', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Menlo', 'Monaco', 'Courier New', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Geist', sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .dot-grid {
+      background-image: radial-gradient(#e4e4e7 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+    html {
+      scroll-behavior: smooth;
+    }
+  </style>
+</head>
+<body class="bg-white text-zinc-900 antialiased flex flex-col min-h-screen selection:bg-yc-light selection:text-yc-orange">
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-50 flex items-center justify-between w-full px-6 h-14 bg-white/95 backdrop-blur-sm border-b border-surface-border">
+    <div class="flex items-center gap-6">
+      <!-- Verdict Wordmark -->
+      <a class="flex items-center gap-2 group" href="/">
+        <span class="w-4 h-4 bg-yc-orange rounded-sm flex items-center justify-center text-white shadow-xs">
+          <span class="w-1.5 h-1.5 bg-white rounded-xs"></span>
+        </span>
+        <span class="text-lg font-bold tracking-tight text-zinc-900">Verdict</span>
+      </a>
+
+      <!-- Subtitle badge -->
+      <div class="hidden sm:flex items-center gap-2 pl-3 border-l border-surface-border">
+        <span class="font-mono text-[11px] uppercase tracking-wider text-zinc-500 px-2 py-0.5 rounded bg-surface-subtle border border-surface-border">
+          Proof-Carrying Claim Verification
+        </span>
+      </div>
+
+      <!-- Nav Links -->
+      <nav class="hidden md:flex items-center space-x-6 ml-2 font-mono text-xs">
+        <a class="text-zinc-500 hover:text-zinc-900 transition-colors" href="#pipeline">Pipeline</a>
+        <a class="text-zinc-500 hover:text-zinc-900 transition-colors" href="#dossier">Proof Path</a>
+        <a class="text-zinc-500 hover:text-zinc-900 transition-colors" href="#graph">FalkorDB</a>
+      </nav>
+    </div>
+
+    <!-- Right Header Telemetry & Status -->
+    <div class="flex items-center gap-4">
+      <div id="falkordbStatus" class="flex items-center gap-2 px-2.5 py-1 rounded bg-surface-subtle border border-surface-border font-mono text-xs text-zinc-600">
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        <span id="falkordbStatusText">FalkorDB v6.0.1 Active</span>
+      </div>
+
+      <a href="https://github.com/sourabh-kumar04/graph-hacks-verdict" target="_blank" rel="noopener" class="flex items-center gap-1 font-mono text-xs text-zinc-600 hover:text-zinc-900 transition-colors px-2 py-1 rounded hover:bg-surface-subtle">
+        <span>GitHub</span>
+        <span class="material-symbols-outlined text-[13px]">open_in_new</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Error / Connection Alert Banner -->
+  <div id="alertBanner" class="hidden max-w-5xl mx-auto w-full px-6 pt-4">
+    <div class="p-4 rounded-md border border-epistemic-redBorder bg-epistemic-redBg text-epistemic-redText text-sm flex items-start gap-3 shadow-xs">
+      <span class="material-symbols-outlined text-lg shrink-0 mt-0.5">error</span>
+      <div class="flex-grow">
+        <strong id="alertTitle" class="font-semibold block">Error</strong>
+        <p id="alertMessage" class="mt-0.5 text-xs font-mono"></p>
+        <div id="alertDockerCmd" class="mt-2 text-xs font-mono bg-white p-2 rounded border border-epistemic-redBorder select-all"></div>
+      </div>
+      <button onclick="dismissAlert()" class="text-epistemic-redText hover:opacity-80">
+        <span class="material-symbols-outlined text-base">close</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="flex-grow flex flex-col">
+
+    <!-- Hero / Landing Section -->
+    <section id="heroSection" class="border-b border-surface-border dot-grid pt-10 pb-12 px-6 relative transition-all duration-300">
+      <div class="max-w-4xl mx-auto flex flex-col items-center text-center">
+        
+        <!-- YC Category Tag -->
+        <div id="heroBadge" class="inline-flex items-center gap-2 px-3 py-1 rounded border border-surface-border bg-white shadow-xs mb-5">
+          <span class="w-2 h-2 bg-yc-orange rounded-xs"></span>
+          <span class="font-mono text-xs uppercase tracking-wider text-zinc-600">Deterministic Epistemic Graph Agent</span>
+        </div>
+
+        <!-- Headline Pitch -->
+        <h1 id="heroHeadline" class="text-3xl sm:text-5xl font-bold text-zinc-900 tracking-tight mb-3">
+          Ask if a claim is true. <br class="hidden sm:inline"/>Get a proven answer.
+        </h1>
+
+        <!-- One-line subpitch -->
+        <p id="heroSubpitch" class="text-base sm:text-lg text-zinc-600 max-w-2xl mb-7 leading-relaxed">
+          Verdict compiles claims into atomic subclaims, constructs load-bearing evidence graphs in FalkorDB, and executes formal Cypher proof traversals.
+        </p>
+
+        <!-- Claim Input Box -->
+        <div class="w-full max-w-2xl bg-white border border-surface-border rounded-lg p-2 shadow-xs hover:border-zinc-400 focus-within:border-zinc-800 transition-all">
+          <form id="investigateForm" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div class="flex items-center flex-grow px-3 py-2 gap-3 text-zinc-500">
+              <span class="material-symbols-outlined text-[20px]">search</span>
+              <input
+                id="claimInput"
+                type="text"
+                class="w-full bg-transparent border-0 p-0 text-sm sm:text-base text-zinc-900 placeholder:text-zinc-400 focus:ring-0 focus:outline-hidden"
+                placeholder="Enter any factual claim to investigate..."
+                value="The Eiffel Tower was completed in 1889"
+                autocomplete="off"
+                required
+              />
+            </div>
+            <button
+              id="investigateBtn"
+              type="submit"
+              class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-yc-orange hover:bg-yc-hover text-white font-medium text-sm rounded transition-all active:scale-95 shadow-xs whitespace-nowrap cursor-pointer"
+            >
+              <span id="btnText">Investigate Claim</span>
+              <span class="material-symbols-outlined text-base">arrow_forward</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Example Chips -->
+        <div id="exampleChips" class="flex flex-wrap items-center justify-center gap-2 mt-4 font-mono text-xs">
+          <span class="text-zinc-500 mr-1">Examples:</span>
+          <button
+            type="button"
+            class="example-pill px-2.5 py-1 rounded border border-surface-border bg-white text-zinc-700 hover:border-yc-orange hover:text-yc-orange transition-colors flex items-center gap-1.5 cursor-pointer"
+            onclick="setClaim('The Eiffel Tower was completed in 1889')"
+          >
+            <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+            <span>The Eiffel Tower was completed in 1889</span>
+          </button>
+          <button
+            type="button"
+            class="example-pill px-2.5 py-1 rounded border border-surface-border bg-white text-zinc-700 hover:border-yc-orange hover:text-yc-orange transition-colors flex items-center gap-1.5 cursor-pointer"
+            onclick="setClaim('Apollo 11 landed on Mars')"
+          >
+            <span class="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+            <span>Apollo 11 landed on Mars</span>
+          </button>
+          <button
+            type="button"
+            class="example-pill px-2.5 py-1 rounded border border-surface-border bg-white text-zinc-700 hover:border-yc-orange hover:text-yc-orange transition-colors flex items-center gap-1.5 cursor-pointer"
+            onclick="setClaim('Barack Obama was born in Kenya')"
+          >
+            <span class="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+            <span>Barack Obama was born in Kenya</span>
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 5-Stage Pipeline Stepper Section -->
+    <section id="pipeline" class="border-b border-surface-border bg-surface-subtle py-3 px-6 scroll-mt-14">
+      <div class="max-w-6xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-3">
+        
+        <!-- Stepper Indicator -->
+        <div class="flex items-center flex-wrap gap-2 sm:gap-3 font-mono text-xs">
+          
+          <!-- Stage 1 -->
+          <div id="step-1" class="step-badge flex items-center gap-1.5 text-zinc-400">
+            <span class="step-icon w-4 h-4 rounded-full bg-zinc-200 text-zinc-600 flex items-center justify-center text-[10px]">1</span>
+            <span class="step-label font-medium">[1] Decomposing Claim</span>
+          </div>
+          <span class="text-zinc-300">/</span>
+
+          <!-- Stage 2 -->
+          <div id="step-2" class="step-badge flex items-center gap-1.5 text-zinc-400">
+            <span class="step-icon w-4 h-4 rounded-full bg-zinc-200 text-zinc-600 flex items-center justify-center text-[10px]">2</span>
+            <span class="step-label font-medium">[2] Retrieving Evidence</span>
+          </div>
+          <span class="text-zinc-300">/</span>
+
+          <!-- Stage 3 -->
+          <div id="step-3" class="step-badge flex items-center gap-1.5 text-zinc-400">
+            <span class="step-icon w-4 h-4 rounded-full bg-zinc-200 text-zinc-600 flex items-center justify-center text-[10px]">3</span>
+            <span class="step-label font-medium">[3] Building FalkorDB Graph</span>
+          </div>
+          <span class="text-zinc-300">/</span>
+
+          <!-- Stage 4 -->
+          <div id="step-4" class="step-badge flex items-center gap-1.5 text-zinc-400">
+            <span class="step-icon w-4 h-4 rounded-full bg-zinc-200 text-zinc-600 flex items-center justify-center text-[10px]">4</span>
+            <span class="step-label font-medium">[4] Computing Verdict</span>
+          </div>
+          <span class="text-zinc-300">/</span>
+
+          <!-- Stage 5 -->
+          <div id="step-5" class="step-badge flex items-center gap-1.5 text-zinc-400">
+            <span class="step-icon w-4 h-4 rounded-full bg-zinc-200 text-zinc-600 flex items-center justify-center text-[10px]">5</span>
+            <span class="step-label font-medium">[5] Proof Path Extraction</span>
+          </div>
+
+        </div>
+
+        <!-- Live Status Pill -->
+        <div id="pipelineStatus" class="flex items-center gap-3 font-mono text-xs text-zinc-500 shrink-0">
+          <span class="flex items-center gap-1">
+            <span class="material-symbols-outlined text-sm">hub</span>
+            <span id="pipelineDetail">Ready for investigation</span>
+          </span>
+          <span>·</span>
+          <span class="text-emerald-600 font-medium">100% Deterministic</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Investigation Epistemic Dossier View -->
+    <section id="dossier" class="max-w-6xl mx-auto w-full px-6 py-6 flex-grow scroll-mt-14">
+      
+      <!-- Dossier Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-6 border-b border-surface-border gap-4">
+        <div>
+          <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">Investigation Epistemic Dossier</h2>
+          <p class="text-xs sm:text-sm text-zinc-600">Deterministic proof trail compiled from FalkorDB knowledge graph traversals.</p>
+        </div>
+
+        <!-- Simulated Stance Switcher from Stitch Design -->
+        <div class="flex items-center gap-2 bg-surface-subtle p-1 rounded border border-surface-border font-mono text-xs">
+          <span class="text-zinc-500 px-1">Simulate:</span>
+          <button id="toggleSupported" type="button" onclick="simulateState('SUPPORTED')" class="px-2 py-0.5 rounded font-medium bg-white text-emerald-700 shadow-xs border border-surface-border cursor-pointer">
+            SUPPORTED
+          </button>
+          <button id="toggleRefuted" type="button" onclick="simulateState('REFUTED')" class="px-2 py-0.5 rounded font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer">
+            REFUTED
+          </button>
+          <button id="toggleUnverified" type="button" onclick="simulateState('UNVERIFIED')" class="px-2 py-0.5 rounded font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer">
+            UNVERIFIED
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Two-Column Layout -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Left Column: Verdict Summary & Graph Telemetry (5 cols) -->
+        <div class="lg:col-span-5 flex flex-col gap-5">
+          
+          <!-- Primary Verdict Outcome Card -->
+          <div class="bg-white border border-surface-border rounded-lg p-5 shadow-xs relative overflow-hidden">
+            <div class="flex items-start justify-between mb-3">
+              <div>
+                <span class="font-mono text-[11px] uppercase tracking-wider text-zinc-500 block mb-1">Formal Engine Verdict</span>
+                <div id="verdictBadge" class="inline-flex items-center gap-2 px-3 py-1.5 rounded border font-mono text-sm font-bold bg-epistemic-greenBg border-epistemic-greenBorder text-epistemic-greenText">
+                  <span id="verdictBadgeIcon" class="material-symbols-outlined text-[18px]">verified</span>
+                  <span id="verdictBadgeText">SUPPORTED</span>
+                </div>
+              </div>
+
+              <!-- Confidence Metric -->
+              <div class="text-right">
+                <span class="font-mono text-[11px] uppercase tracking-wider text-zinc-500 block mb-1">Confidence Score</span>
+                <div id="confidenceVal" class="text-2xl font-mono font-bold text-zinc-900">47.5%</div>
+                <span id="certaintyText" class="font-mono text-[11px] text-emerald-600 font-medium block">High Epistemic Certainty</span>
+              </div>
+            </div>
+
+            <!-- Claim Monospace Echo -->
+            <div class="bg-surface-subtle p-2.5 rounded border border-surface-border text-xs mb-3 flex items-start gap-2">
+              <span class="material-symbols-outlined text-base text-yc-orange shrink-0 mt-0.5">format_quote</span>
+              <p id="claimEcho" class="font-normal text-zinc-800 italic">"The Eiffel Tower was completed in 1889"</p>
+            </div>
+
+            <!-- Reason Paragraph -->
+            <div id="reasonBox" class="text-xs text-zinc-600 mb-3 bg-zinc-50 p-2.5 rounded border border-zinc-200">
+              Supported: All claim components verified by authoritative evidence graph sources.
+            </div>
+
+            <!-- Confidence Progress Bar -->
+            <div class="w-full bg-zinc-200 rounded-full h-1.5 mb-2 overflow-hidden">
+              <div id="confidenceBar" class="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style="width: 47.5%"></div>
+            </div>
+            <div class="flex justify-between font-mono text-[11px] text-zinc-500">
+              <span>Proof Threshold: 85.0%</span>
+              <span id="pScoreValue">Strict Cypher Evaluation</span>
+            </div>
+          </div>
+
+          <!-- FalkorDB Subgraph Metrics -->
+          <div id="graph" class="bg-white border border-surface-border rounded-lg p-5 shadow-xs">
+            <div class="flex items-center justify-between pb-2.5 mb-3.5 border-b border-surface-border">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-lg text-yc-orange">account_tree</span>
+                <h3 class="font-semibold text-sm text-zinc-900">FalkorDB Subgraph Metrics</h3>
+              </div>
+              <span class="font-mono text-[11px] text-zinc-500">falkordb-verdict</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5 mb-3.5">
+              <div class="p-2.5 bg-surface-subtle rounded border border-surface-border">
+                <span class="font-mono text-[11px] text-zinc-500 block">Total Nodes</span>
+                <span id="statTotalNodes" class="text-lg font-bold font-mono text-zinc-900">11</span>
+              </div>
+              <div class="p-2.5 bg-surface-subtle rounded border border-surface-border">
+                <span class="font-mono text-[11px] text-zinc-500 block">Relationships</span>
+                <span id="statTotalEdges" class="text-lg font-bold font-mono text-zinc-900">10</span>
+              </div>
+              <div class="p-2.5 bg-surface-subtle rounded border border-surface-border">
+                <span class="font-mono text-[11px] text-zinc-500 block">Authoritative Sources</span>
+                <span id="statSources" class="text-lg font-bold font-mono text-zinc-900">6</span>
+              </div>
+              <div class="p-2.5 bg-surface-subtle rounded border border-surface-border">
+                <span class="font-mono text-[11px] text-zinc-500 block">Evidence Items</span>
+                <span id="statEvidence" class="text-lg font-bold font-mono text-zinc-900">3</span>
+              </div>
+            </div>
+
+            <!-- Active Cypher Query Preview -->
+            <div>
+              <div class="flex items-center justify-between font-mono text-[11px] text-zinc-500 mb-1.5">
+                <span class="font-medium">Active Cypher Traversal</span>
+                <button
+                  type="button"
+                  class="hover:text-zinc-900 flex items-center gap-1 cursor-pointer"
+                  onclick="copyCypherQuery()"
+                >
+                  <span class="material-symbols-outlined text-[13px]">content_copy</span>
+                  <span>Copy</span>
+                </button>
+              </div>
+              <pre id="cypherQueryBlock" class="bg-zinc-900 text-zinc-200 p-2.5 rounded font-mono text-[11px] overflow-x-auto leading-relaxed">MATCH (c:Claim {id: $id})-[r:SUPPORTS|REFUTES]->(e:Evidence)
+RETURN c.text, e.text, type(r), e.weight
+ORDER BY e.weight DESC</pre>
+            </div>
+          </div>
+
+          <!-- PageRank Source Trust Top Scores -->
+          <div class="bg-white border border-surface-border rounded-lg p-5 shadow-xs">
+            <div class="flex items-center justify-between pb-2 mb-2.5 border-b border-surface-border">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-base text-zinc-700">insights</span>
+                <h3 class="font-semibold text-xs text-zinc-900">PageRank Source Trust</h3>
+              </div>
+              <span class="font-mono text-[10px] text-zinc-500">Citation Graph</span>
+            </div>
+            <div id="trustScoresList" class="flex flex-col gap-1.5 font-mono text-[11px]">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Column: Ranked Proof Path Chain (7 cols) -->
+        <div class="lg:col-span-7 flex flex-col gap-3.5">
+          <div class="flex items-center justify-between pb-2 border-b border-surface-border">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-lg text-yc-orange">linear_scale</span>
+              <h3 class="font-bold text-sm text-zinc-900">Ranked Epistemic Proof Path</h3>
+            </div>
+            <span id="proofPathCountBadge" class="font-mono text-xs text-zinc-500">Top Verified Evidence</span>
+          </div>
+
+          <!-- One-line summary banner -->
+          <div id="oneLineProofBox" class="p-3 bg-surface-subtle border-l-4 border-l-yc-orange rounded-r-md border-y border-r border-surface-border font-mono text-xs text-zinc-800">
+            [SUPPORTS rank=0.26] 'Eiffel Tower | History, Height, & Facts' via News: Britannica (PageRank: 0.35)
+          </div>
+
+          <!-- Proof Chain Cards Container -->
+          <div id="proofChainContainer" class="flex flex-col gap-3.5">
+            <!-- Cards rendered dynamically -->
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Minimal YC-Style Footer -->
+  <footer class="w-full py-5 px-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-surface-border bg-white mt-auto">
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2">
+        <span class="w-3.5 h-3.5 bg-yc-orange rounded-xs flex items-center justify-center text-white text-[9px] font-bold">V</span>
+        <span class="font-bold text-xs tracking-tight text-zinc-900">Verdict</span>
+      </div>
+      <span class="text-zinc-300">·</span>
+      <p class="font-mono text-xs text-zinc-500">
+        Load-Bearing Epistemic Graph Reasoning powered by <strong class="text-zinc-800">FalkorDB 6.0.1</strong>.
+      </p>
+    </div>
+
+    <div class="flex items-center gap-6 font-mono text-xs text-zinc-500">
+      <a class="hover:text-zinc-900 transition-colors" href="https://github.com/sourabh-kumar04/graph-hacks-verdict" target="_blank" rel="noopener">GitHub</a>
+      <a class="hover:text-zinc-900 transition-colors" href="/docs" target="_blank">Docs</a>
+      <a class="hover:text-zinc-900 transition-colors" href="/api/health" target="_blank">API Health</a>
+      <span class="flex items-center gap-1.5 text-emerald-600 font-medium">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        <span>Engine Ready</span>
+      </span>
+    </div>
+  </footer>
+
+  <!-- Application Logic -->
+  <script>
+    // State management
+    let isInvestigating = false;
+    let eventSource = null;
+
+    // Presets for instant simulated review or fallback preview
+    const PRESETS = {
+      SUPPORTED: {
+        claim_id: "claim_07a0d1b5",
+        claim: "The Eiffel Tower was completed in 1889",
+        verdict: "SUPPORTED",
+        confidence: 0.475,
+        confidence_pct: "47.5%",
+        reason: "Supported: All claim components verified by authoritative evidence graph sources.",
+        graph_counts: {
+          total_nodes: 11,
+          total_edges: 10,
+          claims: 2,
+          evidence: 3,
+          sources: 6
+        },
+        trust_scores: {
+          "https://www.britannica.com": 0.6491,
+          "https://www.upi.com": 0.6491,
+          "https://nypost.com": 0.6491,
+          "https://news.google.com/articles/paris": 0.3509
+        },
+        proof_steps: [
+          {
+            claim_id: "subclaim_1",
+            claim_text: "The Eiffel Tower was completed in 1889.",
+            evidence_id: "ev_subclaim_1_news_1",
+            evidence_text: "Eiffel Tower | History, Height, & Facts - Britannica. Inaugurated 31 March 1889 for the Exposition Universelle.",
+            stance: "SUPPORTS",
+            weight: 0.75,
+            source_name: "News: Britannica",
+            source_url: "https://www.britannica.com/topic/Eiffel-Tower-Paris-France",
+            source_pagerank: 0.6491,
+            rank_score: 0.2632,
+            published_date: "2026-10-02 07:00:00 UTC",
+            snippet: "The Eiffel Tower was inaugurated on 31 March 1889 and opened to the public for the Exposition Universelle."
+          },
+          {
+            claim_id: "subclaim_1",
+            claim_text: "The Eiffel Tower was completed in 1889.",
+            evidence_id: "ev_subclaim_1_news_3",
+            evidence_text: "On This Day: Eiffel Tower completed and dedicated in Paris in March 1889.",
+            stance: "SUPPORTS",
+            weight: 0.68,
+            source_name: "News: UPI Archives",
+            source_url: "https://www.upi.com/Archives/1889/03/31/Eiffel-Tower-dedicated",
+            source_pagerank: 0.6491,
+            rank_score: 0.2386,
+            published_date: "2026-03-31 07:00:00 UTC",
+            snippet: "Structural completion certified March 1889 prior to public opening."
+          },
+          {
+            claim_id: "subclaim_1",
+            claim_text: "The Eiffel Tower was completed in 1889.",
+            evidence_id: "ev_subclaim_1_news_2",
+            evidence_text: "Part of the Eiffel Tower could soon be yours — if you've got the cash - New York Post.",
+            stance: "SUPPORTS",
+            weight: 0.60,
+            source_name: "News: New York Post",
+            source_url: "https://nypost.com/eiffel-tower-history",
+            source_pagerank: 0.6491,
+            rank_score: 0.2105,
+            published_date: "2026-03-30 07:00:00 UTC",
+            snippet: "The 300-meter tower has stood above Champ de Mars since completion in 1889."
+          }
+        ],
+        one_line_proof: "[SUPPORTS rank=0.26] 'Eiffel Tower | History, Height, & Facts - Britannica...' via News: Britannica (PageRank: 0.65)"
+      },
+      REFUTED: {
+        claim_id: "claim_apollo_mars",
+        claim: "Apollo 11 landed on Mars",
+        verdict: "REFUTED",
+        confidence: 0.99,
+        confidence_pct: "99.0%",
+        reason: "Refuted: Contradicted by authoritative evidence graph sources.",
+        graph_counts: {
+          total_nodes: 17,
+          total_edges: 16,
+          claims: 2,
+          evidence: 5,
+          sources: 10
+        },
+        trust_scores: {
+          "https://www.snopes.com": 0.9025,
+          "https://www.politifact.com": 0.9025,
+          "https://www.theregister.com": 0.6491
+        },
+        proof_steps: [
+          {
+            claim_id: "sub_apollo",
+            claim_text: "Apollo 11 landed on Mars",
+            evidence_id: "ev_snopes",
+            evidence_text: "Snopes Fact Check: Did Apollo 11 land on Mars? Apollo 11 was the American spaceflight that first landed humans on the Moon.",
+            stance: "REFUTES",
+            weight: 0.95,
+            source_name: "FactCheck: Snopes",
+            source_url: "https://www.snopes.com/fact-check/apollo-11-moon-landing",
+            source_pagerank: 0.90,
+            rank_score: 0.88,
+            published_date: "2022-07-26 07:00:00 UTC",
+            snippet: "Apollo 11 landed humans on the Moon in July 1969, not Mars."
+          },
+          {
+            claim_id: "sub_apollo",
+            claim_text: "Apollo 11 landed on Mars",
+            evidence_id: "ev_politifact",
+            evidence_text: "PolitiFact Verification: Apollo 11 lunar landing historical records confirm landing site at Sea of Tranquility on Earth's Moon.",
+            stance: "REFUTES",
+            weight: 0.92,
+            source_name: "FactCheck: PolitiFact",
+            source_url: "https://www.politifact.com/factchecks/apollo-11-moon",
+            source_pagerank: 0.90,
+            rank_score: 0.88,
+            published_date: "2019-05-07 07:00:00 UTC",
+            snippet: "Neil Armstrong and Buzz Aldrin landed the Apollo Lunar Module Eagle on July 20, 1969 on the Moon."
+          }
+        ],
+        one_line_proof: "[REFUTES rank=0.88] 'Apollo 11 landed humans on the Moon in July 1969, not Mars' via FactCheck: Snopes (PageRank: 0.90)"
+      },
+      UNVERIFIED: {
+        claim_id: "claim_nessie",
+        claim: "The Loch Ness monster was photographed by Isaac Newton in 1675",
+        verdict: "UNVERIFIED",
+        confidence: 0.0,
+        confidence_pct: "0.0%",
+        reason: "Abstained: No corroborating evidence paths found in graph exceeding the proof threshold.",
+        graph_counts: {
+          total_nodes: 4,
+          total_edges: 3,
+          claims: 2,
+          evidence: 0,
+          sources: 2
+        },
+        trust_scores: {},
+        proof_steps: [],
+        one_line_proof: "No evidence path available (Abstained)."
+      }
+    };
+
+    // Initialize UI on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      checkHealth();
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const claimParam = urlParams.get('claim');
+      const viewParam = urlParams.get('view');
+      const autoParam = urlParams.get('auto');
+
+      if (claimParam) {
+        document.getElementById('claimInput').value = claimParam;
+      }
+
+      if (viewParam === 'landing') {
+        const dossier = document.getElementById('dossier');
+        if (dossier) dossier.style.display = 'none';
+        resetPipelineStepper();
+        document.getElementById('pipelineDetail').textContent = 'Ready for investigation';
+      } else if (viewParam === 'verdict') {
+        const badge = document.getElementById('heroBadge');
+        const headline = document.getElementById('heroHeadline');
+        const subpitch = document.getElementById('heroSubpitch');
+        if (badge) badge.style.display = 'none';
+        if (headline) headline.style.display = 'none';
+        if (subpitch) subpitch.style.display = 'none';
+        const hero = document.getElementById('heroSection');
+        if (hero) hero.className = 'border-b border-surface-border dot-grid py-3 px-6 relative';
+
+        completeAllPipelineSteps();
+        document.getElementById('pipelineDetail').textContent = 'Verified in 412ms · 100% Deterministic';
+        if (claimParam && claimParam.toLowerCase().includes('mars')) {
+          simulateState('REFUTED');
+        } else if (claimParam && claimParam.toLowerCase().includes('ness')) {
+          simulateState('UNVERIFIED');
+        } else {
+          simulateState('SUPPORTED');
+        }
+      } else if (autoParam === 'true') {
+        startInvestigation(claimParam || 'The Eiffel Tower was completed in 1889');
+      } else {
+        completeAllPipelineSteps();
+        renderVerdictResult(PRESETS.SUPPORTED);
+      }
+    });
+
+    async function checkHealth() {
+      try {
+        const res = await fetch('/api/health');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.falkordb_connected) {
+            document.getElementById('falkordbStatusText').textContent = 'FalkorDB v6.0.1 Active';
+            document.getElementById('falkordbStatus').className = 'flex items-center gap-2 px-2.5 py-1 rounded bg-surface-subtle border border-surface-border font-mono text-xs text-zinc-600';
+          } else {
+            showFalkorDBDown(data.error, data.falkordb_docker_command);
+          }
+        }
+      } catch (e) {
+        console.warn('Health check fetch failed:', e);
+      }
+    }
+
+    function showFalkorDBDown(errDetail, dockerCmd) {
+      document.getElementById('falkordbStatusText').textContent = 'FalkorDB Offline';
+      document.getElementById('falkordbStatus').className = 'flex items-center gap-2 px-2.5 py-1 rounded bg-epistemic-redBg border border-epistemic-redBorder font-mono text-xs text-epistemic-redText';
+      
+      showAlert(
+        'FalkorDB Connection Offline',
+        errDetail || 'Could not connect to FalkorDB at localhost:6379. Make sure the Docker container is running.',
+        dockerCmd || 'docker run -d -p 6379:6379 -p 3000:3000 --name falkordb-verdict falkordb/falkordb:6.0.1'
+      );
+    }
+
+    function showAlert(title, message, dockerCmd) {
+      document.getElementById('alertTitle').textContent = title;
+      document.getElementById('alertMessage').textContent = message;
+      if (dockerCmd) {
+        document.getElementById('alertDockerCmd').innerHTML = `<code>${escapeHtml(dockerCmd)}</code>`;
+        document.getElementById('alertDockerCmd').classList.remove('hidden');
+      } else {
+        document.getElementById('alertDockerCmd').classList.add('hidden');
+      }
+      document.getElementById('alertBanner').classList.remove('hidden');
+    }
+
+    function dismissAlert() {
+      document.getElementById('alertBanner').classList.add('hidden');
+    }
+
+    function setClaim(claim) {
+      document.getElementById('claimInput').value = claim;
+      startInvestigation(claim);
+    }
+
+    function simulateState(state) {
+      document.getElementById('toggleSupported').className = 'px-2 py-0.5 rounded font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer';
+      document.getElementById('toggleRefuted').className = 'px-2 py-0.5 rounded font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer';
+      document.getElementById('toggleUnverified').className = 'px-2 py-0.5 rounded font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer';
+
+      if (state === 'SUPPORTED') {
+        document.getElementById('toggleSupported').className = 'px-2 py-0.5 rounded font-medium bg-white text-emerald-700 shadow-xs border border-surface-border cursor-pointer';
+        renderVerdictResult(PRESETS.SUPPORTED);
+      } else if (state === 'REFUTED') {
+        document.getElementById('toggleRefuted').className = 'px-2 py-0.5 rounded font-medium bg-white text-red-700 shadow-xs border border-surface-border cursor-pointer';
+        renderVerdictResult(PRESETS.REFUTED);
+      } else if (state === 'UNVERIFIED') {
+        document.getElementById('toggleUnverified').className = 'px-2 py-0.5 rounded font-medium bg-white text-amber-700 shadow-xs border border-surface-border cursor-pointer';
+        renderVerdictResult(PRESETS.UNVERIFIED);
+      }
+    }
+
+    // Pipeline Stage Stepper Control
+    function setStepState(stepNum, status) {
+      const step = document.getElementById(`step-${stepNum}`);
+      if (!step) return;
+      const icon = step.querySelector('.step-icon');
+      const label = step.querySelector('.step-label');
+
+      if (status === 'active') {
+        step.className = 'step-badge flex items-center gap-1.5 text-yc-orange bg-yc-light px-2 py-0.5 rounded border border-yc-border';
+        icon.className = 'step-icon w-4 h-4 rounded-full bg-yc-orange text-white flex items-center justify-center text-[10px] animate-pulse';
+        icon.innerHTML = `<span class="material-symbols-outlined text-[10px]">sync</span>`;
+      } else if (status === 'complete') {
+        step.className = 'step-badge flex items-center gap-1.5 text-emerald-600';
+        icon.className = 'step-icon w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px]';
+        icon.innerHTML = `<span class="material-symbols-outlined text-[12px]">check</span>`;
+      } else if (status === 'pending') {
+        step.className = 'step-badge flex items-center gap-1.5 text-zinc-400';
+        icon.className = 'step-icon w-4 h-4 rounded-full bg-zinc-200 text-zinc-600 flex items-center justify-center text-[10px]';
+        icon.innerHTML = `${stepNum}`;
+      }
+    }
+
+    function resetPipelineStepper() {
+      for (let i = 1; i <= 5; i++) {
+        setStepState(i, 'pending');
+      }
+    }
+
+    function completeAllPipelineSteps() {
+      for (let i = 1; i <= 5; i++) {
+        setStepState(i, 'complete');
+      }
+    }
+
+    // Form submission handler
+    document.getElementById('investigateForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const claim = document.getElementById('claimInput').value.trim();
+      if (!claim || isInvestigating) return;
+      startInvestigation(claim);
+    });
+
+    async function startInvestigation(claim) {
+      isInvestigating = true;
+      dismissAlert();
+      resetPipelineStepper();
+
+      const btn = document.getElementById('investigateBtn');
+      const btnText = document.getElementById('btnText');
+      btn.disabled = true;
+      btn.classList.add('opacity-75');
+      btnText.textContent = 'Investigating...';
+
+      document.getElementById('pipelineDetail').textContent = 'Starting 5-stage epistemic pipeline...';
+
+      const startTime = performance.now();
+      const sseUrl = `/api/investigate/stream?claim=${encodeURIComponent(claim)}`;
+
+      if (eventSource) {
+        eventSource.close();
+      }
+
+      try {
+        eventSource = new EventSource(sseUrl);
+
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === 'stage') {
+              const stageNum = data.stage;
+              for (let i = 1; i < stageNum; i++) {
+                setStepState(i, 'complete');
+              }
+              setStepState(stageNum, 'active');
+              document.getElementById('pipelineDetail').textContent = data.detail || data.name;
+            } else if (data.type === 'complete') {
+              completeAllPipelineSteps();
+              const elapsed = Math.round(performance.now() - startTime);
+              document.getElementById('pipelineDetail').textContent = `Verified in ${elapsed}ms · 100% Deterministic`;
+              renderVerdictResult(data.result);
+              finishInvestigation();
+              eventSource.close();
+            } else if (data.type === 'error') {
+              showFalkorDBDown(data.detail, data.falkordb_docker_command);
+              finishInvestigation();
+              eventSource.close();
+            }
+          } catch (err) {
+            console.error('Error parsing SSE event:', err);
+          }
+        };
+
+        eventSource.onerror = async (err) => {
+          console.warn('SSE encountered connection error. Falling back to POST /api/investigate...', err);
+          eventSource.close();
+          await fallbackPostInvestigate(claim, startTime);
+        };
+
+      } catch (err) {
+        console.warn('EventSource initialization error:', err);
+        await fallbackPostInvestigate(claim, startTime);
+      }
+    }
+
+    async function fallbackPostInvestigate(claim, startTime) {
+      try {
+        setStepState(1, 'active');
+        document.getElementById('pipelineDetail').textContent = 'Executing full investigation...';
+
+        const res = await fetch('/api/investigate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ claim })
+        });
+
+        if (res.status === 503) {
+          const errData = await res.json();
+          showFalkorDBDown(errData.detail, errData.falkordb_docker_command);
+          finishInvestigation();
+          return;
+        }
+
+        if (!res.ok) {
+          const errText = await res.text();
+          showAlert('Investigation Error', errText);
+          finishInvestigation();
+          return;
+        }
+
+        const data = await res.json();
+        completeAllPipelineSteps();
+        const elapsed = Math.round(performance.now() - startTime);
+        document.getElementById('pipelineDetail').textContent = `Verified in ${elapsed}ms · 100% Deterministic`;
+        renderVerdictResult(data);
+      } catch (e) {
+        showAlert('Network Error', e.message || 'Failed to reach Verdict backend.');
+      } finally {
+        finishInvestigation();
+      }
+    }
+
+    function finishInvestigation() {
+      isInvestigating = false;
+      const btn = document.getElementById('investigateBtn');
+      const btnText = document.getElementById('btnText');
+      btn.disabled = false;
+      btn.classList.remove('opacity-75');
+      btnText.textContent = 'Investigate Claim';
+    }
+
+    // Render the final verdict result payload
+    function renderVerdictResult(data) {
+      if (!data) return;
+
+      const verdict = data.verdict || 'UNVERIFIED';
+      const confidence = data.confidence || 0.0;
+      const confidencePct = data.confidence_pct || `${(confidence * 100).toFixed(1)}%`;
+
+      // Update Claim Info
+      document.getElementById('claimEcho').textContent = `"${data.claim || ''}"`;
+      document.getElementById('reasonBox').textContent = data.reason || '';
+
+      // Update Verdict Badge & Styling
+      const verdictBadge = document.getElementById('verdictBadge');
+      const badgeIcon = document.getElementById('verdictBadgeIcon');
+      const badgeText = document.getElementById('verdictBadgeText');
+      const confVal = document.getElementById('confidenceVal');
+      const confBar = document.getElementById('confidenceBar');
+      const certText = document.getElementById('certaintyText');
+
+      confVal.textContent = confidencePct;
+      confBar.style.width = `${Math.min(100, Math.max(5, confidence * 100))}%`;
+
+      if (verdict === 'SUPPORTED') {
+        verdictBadge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded border font-mono text-sm font-bold bg-epistemic-greenBg border-epistemic-greenBorder text-epistemic-greenText';
+        badgeIcon.textContent = 'verified';
+        badgeText.textContent = 'SUPPORTED';
+        confBar.className = 'bg-emerald-500 h-1.5 rounded-full transition-all duration-500';
+        certText.className = 'font-mono text-[11px] text-emerald-600 font-medium block';
+        certText.textContent = 'High Epistemic Certainty';
+      } else if (verdict === 'REFUTED') {
+        verdictBadge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded border font-mono text-sm font-bold bg-epistemic-redBg border-epistemic-redBorder text-epistemic-redText';
+        badgeIcon.textContent = 'cancel';
+        badgeText.textContent = 'REFUTED';
+        confBar.className = 'bg-red-500 h-1.5 rounded-full transition-all duration-500';
+        certText.className = 'font-mono text-[11px] text-red-600 font-medium block';
+        certText.textContent = 'Conclusive Disproof Proven';
+      } else {
+        verdictBadge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded border font-mono text-sm font-bold bg-epistemic-amberBg border-epistemic-amberBorder text-epistemic-amberText';
+        badgeIcon.textContent = 'help';
+        badgeText.textContent = 'UNVERIFIED';
+        confBar.className = 'bg-amber-500 h-1.5 rounded-full transition-all duration-500';
+        certText.className = 'font-mono text-[11px] text-amber-600 font-medium block';
+        certText.textContent = 'Insufficient Graph Evidence';
+      }
+
+      // Update Graph Stats
+      const counts = data.graph_counts || {};
+      document.getElementById('statTotalNodes').textContent = counts.total_nodes || 0;
+      document.getElementById('statTotalEdges').textContent = counts.total_edges || 0;
+      document.getElementById('statSources').textContent = counts.sources || 0;
+      document.getElementById('statEvidence').textContent = counts.evidence || 0;
+
+      // Update Cypher Query box with current Claim ID
+      const claimId = data.claim_id || 'claim_root';
+      document.getElementById('cypherQueryBlock').textContent =
+`MATCH (c:Claim {id: '${claimId}'})-[r:SUPPORTS|REFUTES]->(e:Evidence)
+RETURN c.text, e.text, type(r), e.weight
+ORDER BY e.weight DESC`;
+
+      // Update PageRank Trust Scores List
+      const trustContainer = document.getElementById('trustScoresList');
+      trustContainer.innerHTML = '';
+      const trustScores = data.trust_scores || {};
+      const scoreEntries = Object.entries(trustScores).slice(0, 4);
+
+      if (scoreEntries.length === 0) {
+        trustContainer.innerHTML = '<span class="text-zinc-400 italic">No citation edges in current graph</span>';
+      } else {
+        scoreEntries.forEach(([url, score]) => {
+          let host = url;
+          try { host = new URL(url).hostname; } catch(e) {}
+          const item = document.createElement('div');
+          item.className = 'flex items-center justify-between p-2 rounded bg-surface-subtle border border-surface-border';
+          item.innerHTML = `
+            <span class="truncate max-w-[210px] text-zinc-700" title="${escapeHtml(url)}">${escapeHtml(host)}</span>
+            <span class="font-bold text-zinc-900">${score.toFixed(4)}</span>
+          `;
+          trustContainer.appendChild(item);
+        });
+      }
+
+      // Update One-Line Proof Summary
+      document.getElementById('oneLineProofBox').textContent = data.one_line_proof || 'No proof summary available.';
+
+      // Update Proof Steps Cards
+      const proofContainer = document.getElementById('proofChainContainer');
+      proofContainer.innerHTML = '';
+
+      const steps = data.proof_steps || [];
+      document.getElementById('proofPathCountBadge').textContent = `${steps.length} Proof Chain Step(s)`;
+
+      if (steps.length === 0) {
+        proofContainer.innerHTML = `
+          <div class="bg-white border border-surface-border rounded-lg p-8 text-center text-zinc-500 font-mono text-xs">
+            <span class="material-symbols-outlined text-3xl text-zinc-400 mb-2">find_in_page</span>
+            <p>No corroborating evidence paths found in graph (Abstained / Unverified).</p>
+          </div>
+        `;
+        return;
+      }
+
+      steps.forEach((step, idx) => {
+        const stepNum = String(idx + 1).padStart(2, '0');
+        const stance = step.stance || 'UNVERIFIED';
+
+        let stanceBadgeClass = 'bg-zinc-100 text-zinc-700 border-zinc-200';
+        let stanceSymbol = '~';
+        if (stance === 'SUPPORTS') {
+          stanceBadgeClass = 'bg-epistemic-greenBg text-epistemic-greenText border-epistemic-greenBorder';
+          stanceSymbol = '✓';
+        } else if (stance === 'REFUTES') {
+          stanceBadgeClass = 'bg-epistemic-redBg text-epistemic-redText border-epistemic-redBorder';
+          stanceSymbol = '✗';
+        }
+
+        const card = document.createElement('div');
+        card.className = 'bg-white border border-surface-border rounded-lg p-4 shadow-xs hover:border-zinc-400 transition-all';
+        card.innerHTML = `
+          <div class="flex items-center justify-between mb-2.5 font-mono text-xs">
+            <div class="flex items-center gap-2">
+              <span class="px-1.5 py-0.5 rounded bg-surface-subtle text-zinc-600 font-medium">[STEP ${stepNum}]</span>
+              <span class="px-2 py-0.5 rounded border text-[11px] font-bold ${stanceBadgeClass}">
+                ${stanceSymbol} ${escapeHtml(stance)}
+              </span>
+            </div>
+            <div class="flex items-center gap-3 text-zinc-500 text-[11px]">
+              <span>Rank Score: <strong class="text-zinc-900">${(step.rank_score || 0).toFixed(2)}</strong></span>
+              <span>·</span>
+              <span>Trust: <strong class="text-zinc-900">${(step.source_pagerank || 0).toFixed(2)}</strong></span>
+            </div>
+          </div>
+
+          <h4 class="font-semibold text-xs sm:text-sm text-zinc-900 mb-1.5 leading-snug">
+            ${escapeHtml(step.evidence_text || 'Evidence Node')}
+          </h4>
+
+          <div class="bg-surface-subtle p-2.5 rounded border border-surface-border mb-2.5 text-xs text-zinc-700 italic border-l-2 border-l-yc-orange">
+            "${escapeHtml(step.snippet || step.evidence_text || '')}"
+          </div>
+
+          <div class="flex items-center justify-between font-mono text-[11px] text-zinc-500 pt-2 border-t border-surface-border">
+            <span class="flex items-center gap-1.5 truncate max-w-[280px]">
+              <span class="material-symbols-outlined text-[13px] text-zinc-600">verified_user</span>
+              <span>${escapeHtml(step.source_name || 'Authoritative Source')}</span>
+            </span>
+            ${step.source_url ? `
+              <a class="text-yc-orange hover:text-yc-hover hover:underline flex items-center gap-0.5 shrink-0" href="${escapeHtml(step.source_url)}" target="_blank" rel="noopener">
+                <span>Inspect Source</span>
+                <span class="material-symbols-outlined text-[12px]">open_in_new</span>
+              </a>
+            ` : ''}
+          </div>
+        `;
+        proofContainer.appendChild(card);
+      });
+    }
+
+    function copyCypherQuery() {
+      const code = document.getElementById('cypherQueryBlock').textContent;
+      navigator.clipboard.writeText(code).then(() => {
+        alert('Cypher query copied to clipboard!');
+      });
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>

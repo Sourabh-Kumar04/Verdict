@@ -233,6 +233,30 @@ python demo.py "Barack Obama was born in Kenya"
 python demo.py "Tesla unveiled the Cybercab robotaxi in October 2024"
 ```
 
+### 5. Run the Web Application (YC Aesthetic)
+
+Start the FastAPI web server:
+
+```bash
+python server.py --host 0.0.0.0 --port 8000
+```
+
+Open `http://localhost:8000` in any web browser.
+
+#### Features
+- **Premium YC Design**: Designed via the **Stitch MCP** tool with clean white background, confident minimalism, and YC orange (`#f26625`) accent.
+- **Live 5-Stage Pipeline**: Real-time Server-Sent Events (SSE) streaming progress through the epistemic pipeline:
+  1. `[1] Decomposing Claim` (atomic components & entities)
+  2. `[2] Retrieving Evidence` (Wikipedia, Wikidata, News & Fact-Checkers)
+  3. `[3] Building FalkorDB Graph` (nodes, relationships, PageRank)
+  4. `[4] Computing Verdict` (strict Cypher evaluation)
+  5. `[5] Proof Path Extraction` (ranked evidence chain)
+- **Verdict Dossier**: High-visibility `SUPPORTED` (green), `REFUTED` (red), or `UNVERIFIED` (amber) status badge, confidence score, FalkorDB subgraph metrics (nodes, edges, sources, claims), Cypher traversal query preview, and ranked proof path with PageRank trust scores.
+- **REST & SSE Endpoints**:
+  - `POST /api/investigate`: Submit a claim JSON `{"claim": "..."}` and get complete verdict JSON.
+  - `GET /api/investigate/stream?claim=...`: SSE stream with live stage-by-stage progress events.
+  - `GET /api/health`: FalkorDB 6.0.1 connectivity and health status.
+
 ---
 
 ## Honest Limitations

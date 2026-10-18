@@ -7,7 +7,7 @@ Pipeline:
 
 from __future__ import annotations
 import uuid
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Callable, Generator
 
 from verdict.claim_decomposer import ClaimDecomposer
 from verdict.retriever import EvidenceRetriever
@@ -47,7 +47,12 @@ class VerdictAgent:
         """Verifies FalkorDB instance is alive and reachable."""
         return self.graph_store.check_connection()
 
-    def investigate(self, claim: str, clear_graph: bool = True) -> Dict[str, Any]:
+    def investigate(
+        self,
+        claim: str,
+        clear_graph: bool = True,
+        on_stage: Optional[Callable[[int, str, str], None]] = None
+    ) -> Dict[str, Any]:
         """
         Executes end-to-end investigation on a claim string.
         Hardened against unreachable FalkorDB, empty evidence, and invalid/adversarial claims.
@@ -85,6 +90,8 @@ class VerdictAgent:
         claim_id = f"claim_{uuid.uuid4().hex[:8]}"
 
         # Step 1: Add root claim to FalkorDB
+        if on_stage:
+            on_stage(1, "Decomposing Claim", "Decomposing claim into atomic sub-claims & entities...")
         self.graph_store.add_root_claim(claim_id=claim_id, text=sanitized)
 
         # Step 2: Decompose claim into atomic subclaims
@@ -93,6 +100,8 @@ class VerdictAgent:
             self.graph_store.add_subclaim(root_id=claim_id, subclaim=sub)
 
         # Step 3: Retrieve evidence & cross-source citations from public Wikipedia & Wikidata APIs
+        if on_stage:
+            on_stage(2, "Retrieving Evidence", f"Querying Wikipedia, Wikidata & Fact-Checkers for {len(subclaims)} subclaim(s)...")
         for sub in subclaims:
             evidence_items, citations = self.retriever.retrieve_evidence_for_subclaim(sub, top_k=3)
             # Add citations to FalkorDB for PageRank
@@ -103,12 +112,18 @@ class VerdictAgent:
                 self.graph_store.add_evidence(ev, target_claim_id=sub.id)
 
         # Step 4: Compute PageRank trust across sources in FalkorDB
+        if on_stage:
+            on_stage(3, "Building Graph", "Populating FalkorDB evidence graph & computing PageRank trust...")
         trust_scores = self.trust_engine.compute_source_trust()
 
         # Step 5: Compute verdict strictly through Cypher graph queries on FalkorDB
+        if on_stage:
+            on_stage(4, "Computing Verdict", "Executing Cypher verdict graph query against FalkorDB...")
         verdict_res: VerdictResult = self.verdict_engine.evaluate_claim(claim_id=claim_id)
 
         # Step 6: Extract ranked proof path
+        if on_stage:
+            on_stage(5, "Proof Path Extraction", "Traversing and ranking epistemic proof paths in FalkorDB...")
         proof_steps = self.proof_path_engine.get_ranked_proof_path(root_claim_id=claim_id)
         proof_path_text = self.proof_path_engine.format_proof_path(proof_steps)
         one_line_proof = self.proof_path_engine.get_one_line_summary(proof_steps)
@@ -138,3 +153,85 @@ class VerdictAgent:
             "proof_path": proof_path_text,
             "one_line_proof": one_line_proof
         }
+
+    def investigate_stream(
+        self,
+        claim: str,
+        clear_graph: bool = True
+    ) -> Generator[Dict[str, Any], None, None]:
+        """
+        Executes investigation yielding real-time stage progress events,
+        culminating in the final verdict payload.
+        """
+        stages = []
+        def _record_stage(num: int, name: str, detail: str):
+            stages.append({"stage": num, "name": name, "detail": detail})
+
+        # We execute the pipeline yielding events
+        yield {"type": "stage", "stage": 1, "name": "Decomposing Claim", "detail": "Decomposing claim into atomic subclaims & extracting named entities..."}
+
+        sanitized = sanitize_claim(claim)
+        if not sanitized:
+            empty_res = self.investigate(claim)
+            yield {"type": "complete", "result": empty_res}
+            return
+
+        self.check_connection()
+
+        if clear_graph:
+            self.graph_store.delete_graph()
+            self.graph_store.init_schema()
+
+        claim_id = f"claim_{uuid.uuid4().hex[:8]}"
+        self.graph_store.add_root_claim(claim_id=claim_id, text=sanitized)
+
+        subclaims = self.decomposer.decompose(sanitized)
+        for sub in subclaims:
+            self.graph_store.add_subclaim(root_id=claim_id, subclaim=sub)
+
+        yield {"type": "stage", "stage": 2, "name": "Retrieving Evidence", "detail": f"Retrieving authoritative evidence from Wikipedia, Wikidata & Fact-Checkers ({len(subclaims)} subclaim components)..."}
+        for sub in subclaims:
+            evidence_items, citations = self.retriever.retrieve_evidence_for_subclaim(sub, top_k=3)
+            for cite in citations:
+                self.graph_store.add_citation(cite.source_from_url, cite.source_to_url, cite.relationship)
+            for ev in evidence_items:
+                self.graph_store.add_evidence(ev, target_claim_id=sub.id)
+
+        yield {"type": "stage", "stage": 3, "name": "Building FalkorDB Graph", "detail": "Constructing graph relationships & computing PageRank source trust scores..."}
+        trust_scores = self.trust_engine.compute_source_trust()
+
+        yield {"type": "stage", "stage": 4, "name": "Computing Verdict", "detail": "Executing Cypher graph queries to evaluate evidence weights & claim verification..."}
+        verdict_res: VerdictResult = self.verdict_engine.evaluate_claim(claim_id=claim_id)
+
+        yield {"type": "stage", "stage": 5, "name": "Proof Path Extraction", "detail": "Traversing FalkorDB evidence chains to extract ranked proof path..."}
+        proof_steps = self.proof_path_engine.get_ranked_proof_path(root_claim_id=claim_id)
+        proof_path_text = self.proof_path_engine.format_proof_path(proof_steps)
+        one_line_proof = self.proof_path_engine.get_one_line_summary(proof_steps)
+        graph_counts = self.graph_store.get_counts()
+
+        final_result = {
+            "claim_id": claim_id,
+            "claim": claim,
+            "verdict": verdict_res.verdict,
+            "confidence": verdict_res.confidence,
+            "reason": verdict_res.reason,
+            "subverdicts": [
+                {
+                    "subclaim_id": sv.subclaim_id,
+                    "text": sv.text,
+                    "verdict": sv.verdict,
+                    "support_score": sv.support_score,
+                    "refute_score": sv.refute_score,
+                    "evidence_count": sv.evidence_count
+                }
+                for sv in verdict_res.subverdicts
+            ],
+            "graph_counts": graph_counts,
+            "trust_scores": trust_scores,
+            "proof_steps": proof_steps,
+            "proof_path": proof_path_text,
+            "one_line_proof": one_line_proof
+        }
+
+        yield {"type": "complete", "result": final_result}
+

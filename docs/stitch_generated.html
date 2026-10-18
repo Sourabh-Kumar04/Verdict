@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+
+<html class="h-full bg-surface-container-lowest" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Verdict — Proof-Carrying Claim Verification Engine</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Geist & JetBrains Mono Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "outline": "#8d7167",
+            "on-surface-variant": "#594138",
+            "tertiary-fixed": "#6ffbbe",
+            "primary-container": "#f26625",
+            "surface-variant": "#e3e1ec",
+            "surface-container": "#eeedf7",
+            "surface-container-high": "#e8e7f1",
+            "on-primary-fixed-variant": "#7f2b00",
+            "secondary-fixed": "#e4e1e6",
+            "on-primary-fixed": "#370e00",
+            "error-container": "#ffdad6",
+            "primary-fixed": "#ffdbce",
+            "inverse-primary": "#ffb599",
+            "on-primary-container": "#501800",
+            "tertiary-container": "#00a673",
+            "inverse-on-surface": "#f1effa",
+            "on-secondary-container": "#656467",
+            "surface": "#fbf8ff",
+            "primary": "#a63b00",
+            "on-tertiary-fixed-variant": "#005236",
+            "tertiary-fixed-dim": "#4edea3",
+            "outline-variant": "#e1bfb3",
+            "on-secondary-fixed-variant": "#47464a",
+            "secondary-container": "#e4e1e6",
+            "surface-container-lowest": "#ffffff",
+            "on-tertiary-container": "#003220",
+            "tertiary": "#006c49",
+            "surface-container-highest": "#e3e1ec",
+            "surface-dim": "#dad9e3",
+            "surface-tint": "#a63b00",
+            "on-primary": "#ffffff",
+            "surface-bright": "#fbf8ff",
+            "on-error-container": "#93000a",
+            "secondary": "#5f5e61",
+            "on-background": "#1a1b22",
+            "primary-fixed-dim": "#ffb599",
+            "surface-container-low": "#f4f2fd",
+            "on-tertiary": "#ffffff",
+            "inverse-surface": "#2f3038",
+            "on-secondary": "#ffffff",
+            "error": "#ba1a1a",
+            "on-secondary-fixed": "#1b1b1e",
+            "background": "#fbf8ff",
+            "secondary-fixed-dim": "#c8c5ca",
+            "on-surface": "#1a1b22",
+            "on-tertiary-fixed": "#002113",
+            "on-error": "#ffffff"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-xs": "0.25rem",
+            "gutter-sm": "0.75rem",
+            "margin": "1.5rem",
+            "space-lg": "1rem",
+            "gutter-lg": "1.5rem",
+            "space-sm": "0.5rem",
+            "space-md": "0.75rem",
+            "margin-mobile": "1rem",
+            "margin-desktop": "2rem",
+            "space-xl": "1.5rem",
+            "gutter": "1rem",
+            "space-2xl": "2rem"
+          },
+          "fontFamily": {
+            "body-md": ["Geist"],
+            "headline-xl": ["Geist"],
+            "label-md": ["JetBrains Mono"],
+            "body-lg": ["Geist"],
+            "label-xs": ["JetBrains Mono"],
+            "headline-sm": ["Geist"],
+            "headline-xl-mobile": ["Geist"],
+            "label-sm": ["JetBrains Mono"],
+            "body-sm": ["Geist"],
+            "headline-lg": ["Geist"],
+            "headline-md": ["Geist"]
+          },
+          "fontSize": {
+            "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+            "headline-xl": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.025em", "fontWeight": "600" }],
+            "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "-0.01em", "fontWeight": "500" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+            "label-xs": ["10px", { "lineHeight": "12px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "headline-sm": ["15px", { "lineHeight": "22px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "headline-xl-mobile": ["26px", { "lineHeight": "34px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0em", "fontWeight": "500" }],
+            "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "headline-md": ["18px", { "lineHeight": "26px", "letterSpacing": "-0.015em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .dot-grid {
+      background-image: radial-gradient(#e4e4e7 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+  </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface antialiased font-body-md selection:bg-primary-fixed selection:text-on-primary-fixed flex flex-col min-h-screen">
+<!-- TopNavBar (Derived verbatim from Shared Components JSON) -->
+<header class="sticky top-0 z-50 flex items-center justify-between w-full px-6 h-14 bg-surface-container-lowest/95 dark:bg-inverse-surface/95 backdrop-blur-sm border-b border-surface-variant dark:border-on-surface-variant">
+<div class="flex items-center gap-6">
+<!-- Brand Logo / Wordmark -->
+<a class="flex items-center gap-2 group" href="#">
+<span class="w-4 h-4 bg-primary-container rounded flex items-center justify-center text-on-primary">
+<span class="w-1.5 h-1.5 bg-surface-container-lowest rounded-sm"></span>
+</span>
+<span class="text-headline-md font-headline-md font-bold tracking-tight text-on-surface dark:text-inverse-on-surface">Verdict</span>
+</a>
+<!-- Subtitle badge -->
+<div class="hidden sm:flex items-center gap-2 pl-3 border-l border-surface-variant">
+<span class="text-label-xs font-label-xs uppercase tracking-wider text-secondary px-2 py-0.5 rounded bg-surface-container border border-surface-variant">Proof-Carrying Claim Verification</span>
+</div>
+<!-- Navigation Links from JSON -->
+<nav class="hidden md:flex items-center space-x-6 ml-4">
+<a class="text-secondary dark:text-secondary-fixed py-4 font-normal text-label-md font-label-md hover:text-on-surface dark:hover:text-inverse-on-surface transition-colors duration-150" href="#docs">Docs</a>
+<a class="text-primary dark:text-inverse-primary font-medium border-b-2 border-primary dark:border-inverse-primary py-4 text-label-md font-label-md" href="#architecture">Architecture</a>
+<a class="text-secondary dark:text-secondary-fixed py-4 font-normal text-label-md font-label-md hover:text-on-surface dark:hover:text-inverse-on-surface transition-colors duration-150" href="#telemetry">Telemetry</a>
+<a class="text-secondary dark:text-secondary-fixed py-4 font-normal text-label-md font-label-md hover:text-on-surface dark:hover:text-inverse-on-surface transition-colors duration-150 flex items-center gap-1" href="#github">
+          GitHub
+          <span class="material-symbols-outlined text-[13px]" data-icon="open_in_new">open_in_new</span>
+</a>
+</nav>
+</div>
+<!-- FalkorDB Status & Trailing Actions -->
+<div class="flex items-center gap-3">
+<!-- Live FalkorDB status indicator -->
+<div class="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface border border-surface-variant text-label-xs font-label-xs text-secondary">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-tertiary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-tertiary"></span>
+</span>
+<span>FalkorDB v2.4 Active</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-1.5 text-secondary hover:text-on-surface hover:bg-surface-container rounded transition-colors duration-150" title="Inspect Terminal">
+<span class="material-symbols-outlined text-[18px]" data-icon="terminal">terminal</span>
+</button>
+<button class="p-1.5 text-secondary hover:text-on-surface hover:bg-surface-container rounded transition-colors duration-150" title="Knowledge Graph DB">
+<span class="material-symbols-outlined text-[18px]" data-icon="database">database</span>
+</button>
+</div>
+<a class="hidden sm:inline-flex items-center justify-center px-3 py-1.5 bg-surface-container text-on-surface border border-surface-variant hover:bg-surface-variant font-label-xs text-label-xs rounded transition-colors" href="#connect">
+        API Keys
+      </a>
+<button class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-primary-container text-on-primary font-label-sm text-label-sm rounded hover:bg-primary transition-all duration-150 active:scale-95 shadow-sm">
+<span class="material-symbols-outlined text-[14px]" data-icon="bolt">bolt</span>
+<span>Connect Engine</span>
+</button>
+</div>
+</header>
+<!-- Main Content Container with Dot Grid Hero Canvas -->
+<main class="flex-grow flex flex-col">
+<!-- Hero Section -->
+<section class="border-b border-surface-variant dot-grid pt-12 pb-14 px-6 relative">
+<div class="max-w-5xl mx-auto flex flex-col items-center text-center">
+<!-- Category Badge -->
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded border border-surface-variant bg-surface-container-lowest shadow-sm mb-6">
+<span class="w-1.5 h-1.5 bg-primary-container rounded-sm"></span>
+<span class="text-label-xs font-label-xs uppercase tracking-wider text-secondary">Deterministic Epistemic Graph Agent</span>
+</div>
+<!-- Hero Headline -->
+<h1 class="text-headline-xl font-headline-xl text-on-surface tracking-tight mb-4 max-w-3xl">
+          Ask if a claim is true. <br class="hidden sm:inline"/>Get a proven answer.
+        </h1>
+<!-- Subheading -->
+<p class="text-body-lg font-body-lg text-secondary max-w-2xl mb-10 leading-relaxed">
+          Verdict uses structured knowledge graphs and formal epistemic proof paths to verify factual claims with auditable mathematical confidence.
+        </p>
+<!-- Central Claim Input Box -->
+<div class="w-full max-w-3xl bg-surface-container-lowest border border-surface-variant rounded-lg p-2 shadow-sm hover:border-secondary transition-all">
+<form class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2" id="investigateForm">
+<div class="flex items-center flex-grow px-3 py-2 gap-3 text-secondary">
+<span class="material-symbols-outlined text-[20px] text-secondary" data-icon="search">search</span>
+<input class="w-full bg-transparent border-0 p-0 text-body-md font-body-md text-on-surface placeholder:text-secondary focus:ring-0 focus:outline-none" id="claimInput" placeholder="Enter any factual claim to investigate... e.g., Apollo 11 landed on Mars" type="text" value="The Eiffel Tower was completed in 1889"/>
+</div>
+<button class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary-container hover:bg-primary text-on-primary font-headline-sm text-headline-sm rounded transition-all active:scale-95 shadow-sm whitespace-nowrap" type="submit">
+<span>Investigate Claim</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</form>
+</div>
+<!-- Quick Example Chips -->
+<div class="flex flex-wrap items-center justify-center gap-2 mt-4 text-label-xs font-label-xs">
+<span class="text-secondary mr-1">Try claims:</span>
+<button class="example-btn px-2.5 py-1 rounded border border-primary-container bg-primary-fixed/20 text-on-primary-fixed-variant hover:bg-primary-fixed/40 transition-colors flex items-center gap-1.5" data-claim="eiffel" onclick="setQuery('The Eiffel Tower was completed in 1889', 'supported')">
+<span class="w-1.5 h-1.5 bg-tertiary rounded-full"></span>
+<span>The Eiffel Tower was completed in 1889</span>
+</button>
+<button class="example-btn px-2.5 py-1 rounded border border-surface-variant bg-surface-container-lowest text-secondary hover:text-on-surface hover:border-secondary transition-colors flex items-center gap-1.5" data-claim="mars" onclick="setQuery('Apollo 11 landed on Mars', 'refuted')">
+<span class="w-1.5 h-1.5 bg-error rounded-full"></span>
+<span>Apollo 11 landed on Mars</span>
+</button>
+<button class="example-btn px-2.5 py-1 rounded border border-surface-variant bg-surface-container-lowest text-secondary hover:text-on-surface hover:border-secondary transition-colors flex items-center gap-1.5" data-claim="obama" onclick="setQuery('Barack Obama was born in Kenya', 'refuted')">
+<span class="w-1.5 h-1.5 bg-error rounded-full"></span>
+<span>Barack Obama was born in Kenya</span>
+</button>
+<button class="example-btn px-2.5 py-1 rounded border border-surface-variant bg-surface-container-lowest text-secondary hover:text-on-surface hover:border-secondary transition-colors flex items-center gap-1.5" data-claim="water" onclick="setQuery('Water boils at 90°C at sea level', 'refuted')">
+<span class="w-1.5 h-1.5 bg-error rounded-full"></span>
+<span>Water boils at 90°C at sea level</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Live 5-Stage Pipeline Stepper -->
+<section class="border-b border-surface-variant bg-surface py-3 px-6">
+<div class="max-w-6xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-4">
+<!-- Pipeline steps -->
+<div class="flex items-center flex-wrap gap-2 sm:gap-4 text-label-xs font-label-xs">
+<!-- Step 1 -->
+<div class="flex items-center gap-1.5 text-tertiary">
+<span class="w-4 h-4 rounded-full bg-tertiary-fixed flex items-center justify-center text-on-tertiary-container">
+<span class="material-symbols-outlined text-[12px]" data-icon="check">check</span>
+</span>
+<span class="font-medium text-on-surface">[1] Decomposing Claim</span>
+</div>
+<span class="text-surface-variant">/</span>
+<!-- Step 2 -->
+<div class="flex items-center gap-1.5 text-tertiary">
+<span class="w-4 h-4 rounded-full bg-tertiary-fixed flex items-center justify-center text-on-tertiary-container">
+<span class="material-symbols-outlined text-[12px]" data-icon="check">check</span>
+</span>
+<span class="font-medium text-on-surface">[2] Retrieving Evidence</span>
+</div>
+<span class="text-surface-variant">/</span>
+<!-- Step 3 -->
+<div class="flex items-center gap-1.5 text-tertiary">
+<span class="w-4 h-4 rounded-full bg-tertiary-fixed flex items-center justify-center text-on-tertiary-container">
+<span class="material-symbols-outlined text-[12px]" data-icon="check">check</span>
+</span>
+<span class="font-medium text-on-surface">[3] Building FalkorDB Graph</span>
+</div>
+<span class="text-surface-variant">/</span>
+<!-- Step 4 -->
+<div class="flex items-center gap-1.5 text-tertiary">
+<span class="w-4 h-4 rounded-full bg-tertiary-fixed flex items-center justify-center text-on-tertiary-container">
+<span class="material-symbols-outlined text-[12px]" data-icon="check">check</span>
+</span>
+<span class="font-medium text-on-surface">[4] Computing Verdict</span>
+</div>
+<span class="text-surface-variant">/</span>
+<!-- Step 5: Active Proof Path -->
+<div class="flex items-center gap-1.5 bg-primary-container/10 px-2.5 py-0.5 rounded border border-primary-container text-primary">
+<span class="w-2 h-2 rounded-full bg-primary-container animate-pulse"></span>
+<span class="font-medium">[5] Proof Path Extraction</span>
+</div>
+</div>
+<!-- Real-time telemetry badge -->
+<div class="flex items-center gap-3 font-label-xs text-label-xs text-secondary shrink-0">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="timer">timer</span>
+<span>Verified in <strong>412ms</strong></span>
+</span>
+<span>·</span>
+<span>38 Sources Scanned</span>
+<span>·</span>
+<span class="text-tertiary font-medium">100% Deterministic</span>
+</div>
+</div>
+</section>
+<!-- Primary Investigation Canvas & Proof Architecture -->
+<section class="max-w-7xl mx-auto w-full px-6 py-8 flex-grow">
+<!-- Interactive Verdict Switcher Bar (Context & Testing) -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-6 border-b border-surface-variant gap-4">
+<div>
+<h2 class="text-headline-lg font-headline-lg text-on-surface">Investigation Epistemic Dossier</h2>
+<p class="text-body-sm font-body-sm text-secondary">Deterministic proof trail compiled from distributed knowledge graph traversals.</p>
+</div>
+<!-- Simulated Stance Switcher -->
+<div class="flex items-center gap-2 bg-surface-container p-1 rounded border border-surface-variant">
+<span class="text-label-xs font-label-xs text-secondary px-2">Simulate State:</span>
+<button class="px-2.5 py-1 text-label-xs font-label-xs rounded font-medium bg-surface-container-lowest text-tertiary shadow-sm border border-surface-variant" id="toggleSupported" onclick="switchState('supported')">
+            SUPPORTED
+          </button>
+<button class="px-2.5 py-1 text-label-xs font-label-xs rounded font-medium text-secondary hover:text-on-surface" id="toggleRefuted" onclick="switchState('refuted')">
+            REFUTED
+          </button>
+<button class="px-2.5 py-1 text-label-xs font-label-xs rounded font-medium text-secondary hover:text-on-surface" id="toggleUnverified" onclick="switchState('unverified')">
+            UNVERIFIED
+          </button>
+</div>
+</div>
+<!-- Main Two-Column Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+<!-- Left Column: Verdict Summary & Graph Telemetry (5 cols) -->
+<div class="lg:col-span-5 flex flex-col gap-6">
+<!-- Primary Verdict Outcome Card -->
+<div class="bg-surface-container-lowest border border-surface-variant rounded-lg p-6 shadow-sm relative overflow-hidden">
+<div class="flex items-start justify-between mb-4">
+<div>
+<span class="text-label-xs font-label-xs text-secondary uppercase tracking-wider block mb-1">Formal Engine Verdict</span>
+<div class="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-tertiary/10 border border-tertiary/30 text-tertiary font-label-md text-label-md" id="verdictBadge">
+<span class="material-symbols-outlined text-[16px]" data-icon="verified">verified</span>
+<span class="font-bold tracking-wide" id="verdictText">SUPPORTED</span>
+</div>
+</div>
+<!-- Confidence Radial / Metric -->
+<div class="text-right">
+<span class="text-label-xs font-label-xs text-secondary uppercase tracking-wider block mb-1">Confidence Score</span>
+<div class="text-headline-lg font-headline-lg font-bold text-on-surface font-label-md" id="confidenceValue">99.4%</div>
+<span class="text-label-xs font-label-xs text-tertiary font-medium block" id="certaintyText">High Epistemic Certainty</span>
+</div>
+</div>
+<!-- Subject Claim Monospace Echo -->
+<div class="bg-surface p-3 rounded border border-surface-variant font-label-xs text-label-xs text-secondary mb-4 flex items-start gap-2">
+<span class="material-symbols-outlined text-[15px] text-primary shrink-0 mt-0.5" data-icon="format_quote">format_quote</span>
+<p class="font-body-sm text-on-surface" id="claimDisplay">"The Eiffel Tower was completed in 1889"</p>
+</div>
+<!-- Micro Progress Confidence Bar -->
+<div class="w-full bg-surface-variant rounded-full h-1.5 mb-2 overflow-hidden">
+<div class="bg-tertiary h-1.5 rounded-full transition-all duration-500" id="confidenceBar" style="width: 99.4%"></div>
+</div>
+<div class="flex justify-between text-label-xs font-label-xs text-secondary">
+<span>Proof Threshold: 85.0%</span>
+<span id="pScoreValue">p-value &lt; 0.0001 (Deterministic)</span>
+</div>
+</div>
+<!-- FalkorDB Graph Metrics Ledger -->
+<div class="bg-surface-container-lowest border border-surface-variant rounded-lg p-5 shadow-sm">
+<div class="flex items-center justify-between pb-3 mb-4 border-b border-surface-variant">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-primary" data-icon="account_tree">account_tree</span>
+<h3 class="text-headline-sm font-headline-sm text-on-surface">FalkorDB Subgraph Metrics</h3>
+</div>
+<span class="text-label-xs font-label-xs text-secondary">Namespace: /prod/graph/v2</span>
+</div>
+<div class="grid grid-cols-2 gap-3 mb-5">
+<div class="p-3 bg-surface rounded border border-surface-variant">
+<span class="text-label-xs font-label-xs text-secondary block">Total Nodes</span>
+<span class="text-headline-sm font-headline-sm font-bold font-label-md text-on-surface" id="nodesCount">142</span>
+</div>
+<div class="p-3 bg-surface rounded border border-surface-variant">
+<span class="text-label-xs font-label-xs text-secondary block">Relationships</span>
+<span class="text-headline-sm font-headline-sm font-bold font-label-md text-on-surface" id="edgesCount">389</span>
+</div>
+<div class="p-3 bg-surface rounded border border-surface-variant">
+<span class="text-label-xs font-label-xs text-secondary block">Verified Sources</span>
+<span class="text-headline-sm font-headline-sm font-bold font-label-md text-on-surface">28</span>
+</div>
+<div class="p-3 bg-surface rounded border border-surface-variant">
+<span class="text-label-xs font-label-xs text-secondary block">Atomic Claims</span>
+<span class="text-headline-sm font-headline-sm font-bold font-label-md text-on-surface">12</span>
+</div>
+</div>
+<!-- Cypher Query Inspection Drawer -->
+<div>
+<div class="flex items-center justify-between text-label-xs font-label-xs text-secondary mb-1.5">
+<span class="font-medium">Active Cypher Traversal</span>
+<button class="hover:text-on-surface flex items-center gap-1 font-label-xs" onclick="navigator.clipboard.writeText('MATCH (c:Claim)-[r:CORROBORATES]-&gt;(e:Evidence) RETURN p')">
+<span class="material-symbols-outlined text-[13px]" data-icon="content_copy">content_copy</span>
+<span>Copy</span>
+</button>
+</div>
+<div class="bg-inverse-surface text-inverse-on-surface p-3 rounded font-label-xs text-label-xs overflow-x-auto selection:bg-primary-container">
+<span class="text-tertiary-fixed-dim">MATCH</span> (c:Claim {id: <span class="text-primary-fixed">"claim_889"</span>})<br/>
+                -[r:<span class="text-secondary-fixed">CORROBORATES</span>*1..3]-&gt;(e:Evidence)<br/>
+<span class="text-tertiary-fixed-dim">WHERE</span> e.confidence &gt; <span class="text-primary-fixed">0.85</span><br/>
+<span class="text-tertiary-fixed-dim">RETURN</span> p, <span class="text-tertiary-fixed-dim">score</span>(p) <span class="text-tertiary-fixed-dim">ORDER BY</span> score <span class="text-tertiary-fixed-dim">DESC</span>
+</div>
+</div>
+</div>
+<!-- Formal Guarantee / Hash Seal -->
+<div class="p-4 bg-surface rounded-lg border border-surface-variant text-label-xs font-label-xs flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-tertiary text-[18px]" data-icon="lock">lock</span>
+<div>
+<span class="font-medium text-on-surface block">Cryptographic Epistemic Proof Seal</span>
+<span class="text-secondary">SHA-256: 8f9b...a12c (Immutable)</span>
+</div>
+</div>
+<a class="text-primary hover:underline font-label-xs" href="#audit">View Proof</a>
+</div>
+</div>
+<!-- Right Column: Ranked Proof Path Chain (7 cols) -->
+<div class="lg:col-span-7 flex flex-col gap-4">
+<div class="flex items-center justify-between pb-2 border-b border-surface-variant">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-primary" data-icon="linear_scale">linear_scale</span>
+<h3 class="text-headline-sm font-headline-sm text-on-surface">Ranked Proof Path Traversal</h3>
+</div>
+<span class="text-label-xs font-label-xs text-secondary">Top 3 of 19 Paths Displayed</span>
+</div>
+<div class="flex flex-col gap-4" id="proofChainContainer">
+<!-- Node 1: Primary Evidence Node -->
+<div class="bg-surface-container-lowest border border-surface-variant rounded-lg p-5 shadow-sm hover:border-outline-variant transition-colors">
+<div class="flex items-center justify-between mb-3 text-label-xs font-label-xs">
+<div class="flex items-center gap-2">
+<span class="px-1.5 py-0.5 rounded bg-surface-container text-secondary font-medium">[STEP 01]</span>
+<span class="text-secondary font-medium">NODE #1042</span>
+<span class="text-surface-variant">·</span>
+<span class="text-tertiary bg-tertiary-fixed/30 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-tertiary rounded-full"></span>
+                    SUPPORTS
+                  </span>
+</div>
+<div class="flex items-center gap-3">
+<span class="text-secondary">PageRank Trust: <strong class="text-on-surface font-label-md">0.984</strong></span>
+</div>
+</div>
+<h4 class="text-headline-sm font-headline-sm text-on-surface mb-2">Exposition Universelle 1889 Dedication Record</h4>
+<div class="bg-surface p-3 rounded border border-surface-variant mb-3 font-body-sm text-body-sm text-on-surface border-l-2 border-l-tertiary">
+                "The Eiffel Tower was officially inaugurated on 31 March 1889 and opened to the public on 6 May 1889 for the Exposition Universelle."
+              </div>
+<div class="flex items-center justify-between text-label-xs font-label-xs text-secondary pt-2 border-t border-surface-variant">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]" data-icon="verified_user">verified_user</span>
+<span>Source: official-paris-archives.gouv.fr</span>
+</span>
+<a class="text-primary hover:underline flex items-center gap-0.5" href="https://official-paris-archives.gouv.fr" target="_blank">
+                  Inspect Record
+                  <span class="material-symbols-outlined text-[12px]" data-icon="open_in_new">open_in_new</span>
+</a>
+</div>
+</div>
+<!-- Inter-node Connector Indicator -->
+<div class="flex items-center justify-center my--2">
+<div class="flex items-center gap-2 text-label-xs font-label-xs text-secondary bg-surface px-3 py-1 rounded-full border border-surface-variant">
+<span class="material-symbols-outlined text-[14px] text-tertiary" data-icon="hub">hub</span>
+<span>CORROBORATES · Confidence Transfer: 0.962</span>
+</div>
+</div>
+<!-- Node 2: Secondary Corroboration -->
+<div class="bg-surface-container-lowest border border-surface-variant rounded-lg p-5 shadow-sm hover:border-outline-variant transition-colors">
+<div class="flex items-center justify-between mb-3 text-label-xs font-label-xs">
+<div class="flex items-center gap-2">
+<span class="px-1.5 py-0.5 rounded bg-surface-container text-secondary font-medium">[STEP 02]</span>
+<span class="text-secondary font-medium">NODE #1088</span>
+<span class="text-surface-variant">·</span>
+<span class="text-tertiary bg-tertiary-fixed/30 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-tertiary rounded-full"></span>
+                    SUPPORTS
+                  </span>
+</div>
+<div class="flex items-center gap-3">
+<span class="text-secondary">PageRank Trust: <strong class="text-on-surface font-label-md">0.941</strong></span>
+</div>
+</div>
+<h4 class="text-headline-sm font-headline-sm text-on-surface mb-2">Gustave Eiffel Engineering Logbooks</h4>
+<div class="bg-surface p-3 rounded border border-surface-variant mb-3 font-body-sm text-body-sm text-on-surface border-l-2 border-l-tertiary">
+                "Structural completion certified March 1889 prior to elevator installation. Flag hoisted atop the tower on Sunday, 31 March 1889."
+              </div>
+<div class="flex items-center justify-between text-label-xs font-label-xs text-secondary pt-2 border-t border-surface-variant">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]" data-icon="library_books">library_books</span>
+<span>Source: archives.eiffel-heritage.org</span>
+</span>
+<a class="text-primary hover:underline flex items-center gap-0.5" href="https://archives.eiffel-heritage.org" target="_blank">
+                  Inspect Logbook
+                  <span class="material-symbols-outlined text-[12px]" data-icon="open_in_new">open_in_new</span>
+</a>
+</div>
+</div>
+<!-- Inter-node Connector Indicator -->
+<div class="flex items-center justify-center my--2">
+<div class="flex items-center gap-2 text-label-xs font-label-xs text-secondary bg-surface px-3 py-1 rounded-full border border-surface-variant">
+<span class="material-symbols-outlined text-[14px] text-tertiary" data-icon="hub">hub</span>
+<span>CROSS-REFERENCES · Confidence Transfer: 0.938</span>
+</div>
+</div>
+<!-- Node 3: Encyclopedic Third-Party Validation -->
+<div class="bg-surface-container-lowest border border-surface-variant rounded-lg p-5 shadow-sm hover:border-outline-variant transition-colors">
+<div class="flex items-center justify-between mb-3 text-label-xs font-label-xs">
+<div class="flex items-center gap-2">
+<span class="px-1.5 py-0.5 rounded bg-surface-container text-secondary font-medium">[STEP 03]</span>
+<span class="text-secondary font-medium">NODE #1134</span>
+<span class="text-surface-variant">·</span>
+<span class="text-tertiary bg-tertiary-fixed/30 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-tertiary rounded-full"></span>
+                    SUPPORTS
+                  </span>
+</div>
+<div class="flex items-center gap-3">
+<span class="text-secondary">PageRank Trust: <strong class="text-on-surface font-label-md">0.912</strong></span>
+</div>
+</div>
+<h4 class="text-headline-sm font-headline-sm text-on-surface mb-2">Encyclopaedia Britannica: Eiffel Tower Chronology</h4>
+<div class="bg-surface p-3 rounded border border-surface-variant mb-3 font-body-sm text-body-sm text-on-surface border-l-2 border-l-tertiary">
+                "Construction began in January 1887 and was completed in record time: exactly two years, two months, and five days, opening in 1889."
+              </div>
+<div class="flex items-center justify-between text-label-xs font-label-xs text-secondary pt-2 border-t border-surface-variant">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]" data-icon="public">public</span>
+<span>Source: britannica.com/topic/Eiffel-Tower-Paris-France</span>
+</span>
+<a class="text-primary hover:underline flex items-center gap-0.5" href="https://britannica.com" target="_blank">
+                  Inspect Entry
+                  <span class="material-symbols-outlined text-[12px]" data-icon="open_in_new">open_in_new</span>
+</a>
+</div>
+</div>
+</div>
+<!-- Bottom Action Monospace Row -->
+<div class="flex items-center justify-between pt-3 text-label-xs font-label-xs text-secondary">
+<button class="flex items-center gap-1.5 hover:text-on-surface transition-colors" onclick="alert('Exporting complete Cypher DAG AST as JSON...')">
+<span class="material-symbols-outlined text-[14px]" data-icon="download">download</span>
+<span>Export Raw Epistemic DAG (.json)</span>
+</button>
+<span class="text-secondary">Path Invariance: Verified Δ 0.00%</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Interactive Refuted State Preview Template (Hidden by default, triggered by toggle) -->
+<div class="hidden" id="refutedContent">
+<!-- Node 1: Apollo Moon Landing Refutation Node -->
+<div class="bg-surface-container-lowest border border-surface-variant rounded-lg p-5 shadow-sm hover:border-outline-variant transition-colors">
+<div class="flex items-center justify-between mb-3 text-label-xs font-label-xs">
+<div class="flex items-center gap-2">
+<span class="px-1.5 py-0.5 rounded bg-surface-container text-secondary font-medium">[STEP 01]</span>
+<span class="text-secondary font-medium">NODE #9021</span>
+<span class="text-surface-variant">·</span>
+<span class="text-error bg-error-container px-2 py-0.5 rounded font-medium flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-error rounded-full"></span>
+              REFUTES
+            </span>
+</div>
+<div class="flex items-center gap-3">
+<span class="text-secondary">PageRank Trust: <strong class="text-on-surface font-label-md">0.998</strong></span>
+</div>
+</div>
+<h4 class="text-headline-sm font-headline-sm text-on-surface mb-2">NASA Lunar Mission Archive: Apollo 11 Flight Journal</h4>
+<div class="bg-surface p-3 rounded border border-surface-variant mb-3 font-body-sm text-body-sm text-on-surface border-l-2 border-l-error">
+          "On July 20, 1969, Neil Armstrong and Buzz Aldrin landed the Apollo Lunar Module Eagle on the Moon (Mare Tranquillitatis), not Mars. Mars manned expeditions remain unattempted."
+        </div>
+<div class="flex items-center justify-between text-label-xs font-label-xs text-secondary pt-2 border-t border-surface-variant">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]" data-icon="rocket">rocket</span>
+<span>Source: history.nasa.gov/afj/ap11fj</span>
+</span>
+<a class="text-primary hover:underline flex items-center gap-0.5" href="https://history.nasa.gov" target="_blank">
+            View Mission Telemetry
+            <span class="material-symbols-outlined text-[12px]" data-icon="open_in_new">open_in_new</span>
+</a>
+</div>
+</div>
+<!-- Connector -->
+<div class="flex items-center justify-center my--2">
+<div class="flex items-center gap-2 text-label-xs font-label-xs text-secondary bg-surface px-3 py-1 rounded-full border border-surface-variant">
+<span class="material-symbols-outlined text-[14px] text-error" data-icon="close">close</span>
+<span>CONTRADICTS_TARGET_DESTINATION · Distance Variance: 225M km</span>
+</div>
+</div>
+<!-- Node 2: Planetary Science Trajectory Log -->
+<div class="bg-surface-container-lowest border border-surface-variant rounded-lg p-5 shadow-sm hover:border-outline-variant transition-colors">
+<div class="flex items-center justify-between mb-3 text-label-xs font-label-xs">
+<div class="flex items-center gap-2">
+<span class="px-1.5 py-0.5 rounded bg-surface-container text-secondary font-medium">[STEP 02]</span>
+<span class="text-secondary font-medium">NODE #9044</span>
+<span class="text-surface-variant">·</span>
+<span class="text-error bg-error-container px-2 py-0.5 rounded font-medium flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-error rounded-full"></span>
+              REFUTES
+            </span>
+</div>
+<div class="flex items-center gap-3">
+<span class="text-secondary">PageRank Trust: <strong class="text-on-surface font-label-md">0.991</strong></span>
+</div>
+</div>
+<h4 class="text-headline-sm font-headline-sm text-on-surface mb-2">JPL Celestial Trajectory Ephemeris System</h4>
+<div class="bg-surface p-3 rounded border border-surface-variant mb-3 font-body-sm text-body-sm text-on-surface border-l-2 border-l-error">
+          "The Saturn V SA-506 launch vehicle imparted translunar injection (TLI), an orbital maneuver insufficient by order of magnitude to reach Mars insertion orbit."
+        </div>
+<div class="flex items-center justify-between text-label-xs font-label-xs text-secondary pt-2 border-t border-surface-variant">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]" data-icon="satellite_alt">satellite_alt</span>
+<span>Source: ssd.jpl.nasa.gov/horizons</span>
+</span>
+<a class="text-primary hover:underline flex items-center gap-0.5" href="https://jpl.nasa.gov" target="_blank">
+            Inspect Orbital Vectors
+            <span class="material-symbols-outlined text-[12px]" data-icon="open_in_new">open_in_new</span>
+</a>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer (Derived verbatim from Shared Components JSON) -->
+<footer class="w-full py-6 px-6 flex flex-col md:flex-row items-center justify-between gap-4 border-t border-surface-variant dark:border-on-surface-variant bg-surface dark:bg-inverse-surface mt-auto">
+<div class="flex flex-col sm:flex-row items-center gap-3">
+<span class="text-label-sm font-label-sm font-bold text-on-surface dark:text-inverse-on-surface">Verdict</span>
+<span class="hidden sm:inline text-secondary dark:text-secondary-fixed">·</span>
+<p class="text-label-xs font-label-xs text-secondary dark:text-secondary-fixed text-center sm:text-left">
+        © 2025 Verdict Systems Inc. Epistemic Chain Formal Verification. FalkorDB v2.4 Active.
+      </p>
+</div>
+<!-- Links from JSON -->
+<div class="flex items-center flex-wrap justify-center gap-6 text-label-xs font-label-xs">
+<a class="text-secondary dark:text-secondary-fixed hover:text-on-surface dark:hover:text-inverse-on-surface hover:underline transition-colors duration-150" href="#protocol">Deterministic Protocol</a>
+<a class="text-secondary dark:text-secondary-fixed hover:text-on-surface dark:hover:text-inverse-on-surface hover:underline transition-colors duration-150" href="#cypher-spec">Cypher Spec</a>
+<a class="text-secondary dark:text-secondary-fixed hover:text-on-surface dark:hover:text-inverse-on-surface hover:underline transition-colors duration-150" href="#api">API Reference</a>
+<a class="text-primary dark:text-inverse-primary font-medium hover:underline flex items-center gap-1.5" href="#status">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span>Status: Operational</span>
+</a>
+</div>
+</footer>
+<!-- Interactive Demo Logic for Live Switching & Claim Input -->
+<script>
+    // Original Supported nodes HTML
+    const supportedHTML = document.getElementById('proofChainContainer').innerHTML;
+
+    function setQuery(claim, state) {
+      document.getElementById('claimInput').value = claim;
+      document.getElementById('claimDisplay').textContent = `"${claim}"`;
+      switchState(state);
+    }
+
+    function switchState(state) {
+      const verdictBadge = document.getElementById('verdictBadge');
+      const verdictText = document.getElementById('verdictText');
+      const confidenceValue = document.getElementById('confidenceValue');
+      const confidenceBar = document.getElementById('confidenceBar');
+      const certaintyText = document.getElementById('certaintyText');
+      const nodesCount = document.getElementById('nodesCount');
+      const edgesCount = document.getElementById('edgesCount');
+      const pScoreValue = document.getElementById('pScoreValue');
+      const container = document.getElementById('proofChainContainer');
+      const refutedContent = document.getElementById('refutedContent');
+
+      // Update button highlights
+      document.getElementById('toggleSupported').className = "px-2.5 py-1 text-label-xs font-label-xs rounded font-medium text-secondary hover:text-on-surface";
+      document.getElementById('toggleRefuted').className = "px-2.5 py-1 text-label-xs font-label-xs rounded font-medium text-secondary hover:text-on-surface";
+      document.getElementById('toggleUnverified').className = "px-2.5 py-1 text-label-xs font-label-xs rounded font-medium text-secondary hover:text-on-surface";
+
+      if (state === 'supported') {
+        document.getElementById('toggleSupported').className = "px-2.5 py-1 text-label-xs font-label-xs rounded font-medium bg-surface-container-lowest text-tertiary shadow-sm border border-surface-variant";
+        verdictBadge.className = "inline-flex items-center gap-2 px-3 py-1.5 rounded bg-tertiary/10 border border-tertiary/30 text-tertiary font-label-md text-label-md";
+        verdictBadge.innerHTML = '<span class="material-symbols-outlined text-[16px]">verified</span><span class="font-bold tracking-wide">SUPPORTED</span>';
+        confidenceValue.textContent = "99.4%";
+        confidenceBar.style.width = "99.4%";
+        confidenceBar.className = "bg-tertiary h-1.5 rounded-full transition-all duration-500";
+        certaintyText.textContent = "High Epistemic Certainty";
+        certaintyText.className = "text-label-xs font-label-xs text-tertiary font-medium block";
+        nodesCount.textContent = "142";
+        edgesCount.textContent = "389";
+        pScoreValue.textContent = "p-value < 0.0001 (Deterministic)";
+        container.innerHTML = supportedHTML;
+      } else if (state === 'refuted') {
+        document.getElementById('toggleRefuted').className = "px-2.5 py-1 text-label-xs font-label-xs rounded font-medium bg-surface-container-lowest text-error shadow-sm border border-surface-variant";
+        verdictBadge.className = "inline-flex items-center gap-2 px-3 py-1.5 rounded bg-error-container border border-error text-error font-label-md text-label-md";
+        verdictBadge.innerHTML = '<span class="material-symbols-outlined text-[16px]">cancel</span><span class="font-bold tracking-wide">REFUTED</span>';
+        confidenceValue.textContent = "99.9%";
+        confidenceBar.style.width = "99.9%";
+        confidenceBar.className = "bg-error h-1.5 rounded-full transition-all duration-500";
+        certaintyText.textContent = "Conclusive Disproof Proven";
+        certaintyText.className = "text-label-xs font-label-xs text-error font-medium block";
+        nodesCount.textContent = "214";
+        edgesCount.textContent = "572";
+        pScoreValue.textContent = "Direct Refutation Path (FalkorDB)";
+        container.innerHTML = refutedContent.innerHTML;
+      } else if (state === 'unverified') {
+        document.getElementById('toggleUnverified').className = "px-2.5 py-1 text-label-xs font-label-xs rounded font-medium bg-surface-container-lowest text-primary shadow-sm border border-surface-variant";
+        verdictBadge.className = "inline-flex items-center gap-2 px-3 py-1.5 rounded bg-surface-container border border-outline text-on-surface-variant font-label-md text-label-md";
+        verdictBadge.innerHTML = '<span class="material-symbols-outlined text-[16px]">help</span><span class="font-bold tracking-wide">INSUFFICIENT PROOF</span>';
+        confidenceValue.textContent = "41.2%";
+        confidenceBar.style.width = "41.2%";
+        confidenceBar.className = "bg-outline h-1.5 rounded-full transition-all duration-500";
+        certaintyText.textContent = "Below Confidence Threshold";
+        certaintyText.className = "text-label-xs font-label-xs text-outline font-medium block";
+        nodesCount.textContent = "38";
+        edgesCount.textContent = "64";
+        pScoreValue.textContent = "Graph Path Ambiguity > 0.40";
+        container.innerHTML = `
+          <div class="bg-surface-container-lowest border border-surface-variant rounded-lg p-8 text-center">
+            <span class="material-symbols-outlined text-[36px] text-outline mb-2">account_tree</span>
+            <h4 class="text-headline-sm font-headline-sm text-on-surface mb-1">Incomplete Epistemic Traversal</h4>
+            <p class="text-body-sm font-body-sm text-secondary max-w-md mx-auto">
+              Insufficient high-PageRank nodes available to construct a formal mathematical proof chain exceeding the 85.0% certainty threshold.
+            </p>
+          </div>
+        `;
+      }
+    }
+
+    document.getElementById('investigateForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const q = document.getElementById('claimInput').value.trim();
+      if (!q) return;
+      document.getElementById('claimDisplay').textContent = `"${q}"`;
+      if (q.toLowerCase().includes('mars') || q.toLowerCase().includes('kenya') || q.toLowerCase().includes('90')) {
+        switchState('refuted');
+      } else {
+        switchState('supported');
+      }
+    });
+  </script>
+</body></html>
