@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field
 
-from fastapi import FastAPI, HTTPException, Query, status
+from fastapi import FastAPI, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -55,6 +55,7 @@ def get_agent() -> VerdictAgent:
 
 class ClaimRequest(BaseModel):
     claim: str = Field(..., min_length=1, description="The factual claim to investigate")
+    stream: Optional[bool] = Field(False, description="Whether to stream real-time progress via Server-Sent Events")
 
 
 def serialize_proof_step(step: Any) -> Dict[str, Any]:
@@ -101,85 +102,15 @@ def serialize_verdict(result: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-@app.get("/", response_class=HTMLResponse)
-def get_index():
-    """Serves the main Verdict UI."""
-    index_file = STATIC_DIR / "index.html"
-    if not index_file.exists():
-        raise HTTPException(status_code=404, detail="UI index.html not found")
-    return index_file.read_text(encoding="utf-8")
-
-
-@app.get("/api/health")
-def health_check():
-    """Checks service health and FalkorDB connectivity."""
-    agent = get_agent()
-    falkordb_ok = False
-    error_msg = None
-    try:
-        falkordb_ok = agent.check_connection()
-    except Exception as e:
-        error_msg = str(e)
-
-    return {
-        "status": "healthy" if falkordb_ok else "degraded",
-        "falkordb_connected": falkordb_ok,
-        "graph_name": agent.graph_store.graph_name,
-        "error": error_msg,
-        "falkordb_docker_command": "docker run -d -p 6379:6379 -p 3000:3000 --name falkordb-verdict falkordb/falkordb:6.0.1"
-    }
-
-
-@app.post("/api/investigate")
-def investigate_claim(req: ClaimRequest):
+def _build_sse_response(claim_text: str) -> StreamingResponse:
     """
-    Synchronous POST endpoint to investigate a factual claim.
-    Returns complete verdict payload.
+    Constructs a Server-Sent Events (SSE) StreamingResponse providing real-time pipeline
+    milestones followed by the final complete verdict result.
     """
-    claim = req.claim.strip()
+    claim = claim_text.strip()
     if not claim:
         raise HTTPException(status_code=400, detail="Claim cannot be empty.")
 
-    agent = get_agent()
-
-    # Pre-check FalkorDB connectivity
-    try:
-        agent.check_connection()
-    except Exception as e:
-        logger.error(f"FalkorDB connection failure: {e}")
-        return JSONResponse(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={
-                "error": "FalkorDB Connection Failed",
-                "detail": "Could not connect to FalkorDB at localhost:6379. Make sure the 'falkordb-verdict' docker container is running.",
-                "falkordb_docker_command": "docker run -d -p 6379:6379 -p 3000:3000 --name falkordb-verdict falkordb/falkordb:6.0.1"
-            }
-        )
-
-    try:
-        result = agent.investigate(claim)
-        return serialize_verdict(result)
-    except (FalkorDBConnectionError, ConnectionError) as e:
-        logger.error(f"FalkorDB runtime error: {e}")
-        return JSONResponse(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={
-                "error": "FalkorDB Operation Failed",
-                "detail": str(e),
-                "falkordb_docker_command": "docker run -d -p 6379:6379 -p 3000:3000 --name falkordb-verdict falkordb/falkordb:6.0.1"
-            }
-        )
-    except Exception as e:
-        logger.exception("Unexpected error during investigation")
-        raise HTTPException(status_code=500, detail=f"Investigation failed: {str(e)}")
-
-
-@app.get("/api/investigate/stream")
-def stream_investigate_claim(claim: str = Query(..., min_length=1)):
-    """
-    Server-Sent Events (SSE) endpoint providing live 5-stage pipeline progress
-    followed by the final complete verdict result.
-    """
     agent = get_agent()
 
     def event_generator():
@@ -227,6 +158,103 @@ def stream_investigate_claim(claim: str = Query(..., min_length=1)):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
+            "X-Accel-Buffering": "no",
+            "Content-Type": "text/event-stream; charset=utf-8"
         }
     )
+
+
+@app.get("/", response_class=HTMLResponse)
+def get_index():
+    """Serves the main Verdict UI."""
+    index_file = STATIC_DIR / "index.html"
+    if not index_file.exists():
+        raise HTTPException(status_code=404, detail="UI index.html not found")
+    return index_file.read_text(encoding="utf-8")
+
+
+@app.get("/api/health")
+def health_check():
+    """Checks service health and FalkorDB connectivity."""
+    agent = get_agent()
+    falkordb_ok = False
+    error_msg = None
+    try:
+        falkordb_ok = agent.check_connection()
+    except Exception as e:
+        error_msg = str(e)
+
+    return {
+        "status": "healthy" if falkordb_ok else "degraded",
+        "falkordb_connected": falkordb_ok,
+        "graph_name": agent.graph_store.graph_name,
+        "error": error_msg,
+        "falkordb_docker_command": "docker run -d -p 6379:6379 -p 3000:3000 --name falkordb-verdict falkordb/falkordb:6.0.1"
+    }
+
+
+@app.post("/api/investigate")
+def investigate_claim(req: ClaimRequest, request: Request, stream: Optional[bool] = Query(None)):
+    """
+    POST endpoint to investigate a factual claim.
+    Supports both JSON response and real-time SSE streaming (via stream=True or Accept: text/event-stream).
+    """
+    accept_header = request.headers.get("accept", "")
+    is_streaming = (stream is True) or (req.stream is True) or ("text/event-stream" in accept_header.lower())
+    if is_streaming:
+        return _build_sse_response(req.claim)
+
+    claim = req.claim.strip()
+    if not claim:
+        raise HTTPException(status_code=400, detail="Claim cannot be empty.")
+
+    agent = get_agent()
+
+    # Pre-check FalkorDB connectivity
+    try:
+        agent.check_connection()
+    except Exception as e:
+        logger.error(f"FalkorDB connection failure: {e}")
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={
+                "error": "FalkorDB Connection Failed",
+                "detail": "Could not connect to FalkorDB at localhost:6379. Make sure the 'falkordb-verdict' docker container is running.",
+                "falkordb_docker_command": "docker run -d -p 6379:6379 -p 3000:3000 --name falkordb-verdict falkordb/falkordb:6.0.1"
+            }
+        )
+
+    try:
+        result = agent.investigate(claim)
+        return serialize_verdict(result)
+    except (FalkorDBConnectionError, ConnectionError) as e:
+        logger.error(f"FalkorDB runtime error: {e}")
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={
+                "error": "FalkorDB Operation Failed",
+                "detail": str(e),
+                "falkordb_docker_command": "docker run -d -p 6379:6379 -p 3000:3000 --name falkordb-verdict falkordb/falkordb:6.0.1"
+            }
+        )
+    except Exception as e:
+        logger.exception("Unexpected error during investigation")
+        raise HTTPException(status_code=500, detail=f"Investigation failed: {str(e)}")
+
+
+@app.get("/api/investigate/stream")
+def stream_investigate_get(claim: str = Query(..., min_length=1)):
+    """
+    Server-Sent Events (SSE) GET endpoint providing live pipeline progress
+    followed by the final complete verdict result.
+    """
+    return _build_sse_response(claim)
+
+
+@app.post("/api/investigate/stream")
+def stream_investigate_post(req: ClaimRequest):
+    """
+    Server-Sent Events (SSE) POST endpoint providing live pipeline progress
+    followed by the final complete verdict result.
+    """
+    return _build_sse_response(req.claim)

@@ -7,6 +7,7 @@ Pipeline:
 
 from __future__ import annotations
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Any, Optional, Callable, Generator
 
 from verdict.claim_decomposer import ClaimDecomposer
@@ -46,6 +47,10 @@ class VerdictAgent:
     def check_connection(self) -> bool:
         """Verifies FalkorDB instance is alive and reachable."""
         return self.graph_store.check_connection()
+
+    def clear_cache(self) -> None:
+        """Clears in-memory evidence caches."""
+        self.retriever.clear_cache()
 
     def investigate(
         self,
@@ -99,15 +104,23 @@ class VerdictAgent:
         for sub in subclaims:
             self.graph_store.add_subclaim(root_id=claim_id, subclaim=sub)
 
-        # Step 3: Retrieve evidence & cross-source citations from public Wikipedia & Wikidata APIs
+        # Step 3: Retrieve evidence & cross-source citations concurrently
         if on_stage:
             on_stage(2, "Retrieving Evidence", f"Querying Wikipedia, Wikidata & Fact-Checkers for {len(subclaims)} subclaim(s)...")
-        for sub in subclaims:
-            evidence_items, citations = self.retriever.retrieve_evidence_for_subclaim(sub, top_k=3)
-            # Add citations to FalkorDB for PageRank
+
+        if len(subclaims) > 1:
+            with ThreadPoolExecutor(max_workers=min(4, len(subclaims))) as executor:
+                retrieval_results = list(
+                    executor.map(lambda s: (s, self.retriever.retrieve_evidence_for_subclaim(s, top_k=3)), subclaims)
+                )
+        else:
+            retrieval_results = [
+                (subclaims[0], self.retriever.retrieve_evidence_for_subclaim(subclaims[0], top_k=3))
+            ] if subclaims else []
+
+        for sub, (evidence_items, citations) in retrieval_results:
             for cite in citations:
                 self.graph_store.add_citation(cite.source_from_url, cite.source_to_url, cite.relationship)
-            # Add evidence to FalkorDB
             for ev in evidence_items:
                 self.graph_store.add_evidence(ev, target_claim_id=sub.id)
 
@@ -163,13 +176,6 @@ class VerdictAgent:
         Executes investigation yielding real-time stage progress events,
         culminating in the final verdict payload.
         """
-        stages = []
-        def _record_stage(num: int, name: str, detail: str):
-            stages.append({"stage": num, "name": name, "detail": detail})
-
-        # We execute the pipeline yielding events
-        yield {"type": "stage", "stage": 1, "name": "Decomposing Claim", "detail": "Decomposing claim into atomic subclaims & extracting named entities..."}
-
         sanitized = sanitize_claim(claim)
         if not sanitized:
             empty_res = self.investigate(claim)
@@ -185,29 +191,78 @@ class VerdictAgent:
         claim_id = f"claim_{uuid.uuid4().hex[:8]}"
         self.graph_store.add_root_claim(claim_id=claim_id, text=sanitized)
 
+        # Stage 1: Decomposing
         subclaims = self.decomposer.decompose(sanitized)
         for sub in subclaims:
             self.graph_store.add_subclaim(root_id=claim_id, subclaim=sub)
 
-        yield {"type": "stage", "stage": 2, "name": "Retrieving Evidence", "detail": f"Retrieving authoritative evidence from Wikipedia, Wikidata & Fact-Checkers ({len(subclaims)} subclaim components)..."}
-        for sub in subclaims:
-            evidence_items, citations = self.retriever.retrieve_evidence_for_subclaim(sub, top_k=3)
+        sub_desc = f"{len(subclaims)} atomic sub-claim(s)" if len(subclaims) > 1 else f"'{subclaims[0].text[:40]}...'" if subclaims else "atomic components"
+        yield {
+            "type": "stage",
+            "stage": 1,
+            "name": "Decomposing Claim",
+            "detail": f"Decomposed into {sub_desc} & extracted entities."
+        }
+
+        # Stage 2: Evidence Retrieval
+        yield {
+            "type": "stage",
+            "stage": 2,
+            "name": "Retrieving Evidence",
+            "detail": f"Querying Wikipedia, Wikidata & Fact-Checkers concurrently..."
+        }
+
+        if len(subclaims) > 1:
+            with ThreadPoolExecutor(max_workers=min(4, len(subclaims))) as executor:
+                retrieval_results = list(
+                    executor.map(lambda s: (s, self.retriever.retrieve_evidence_for_subclaim(s, top_k=3)), subclaims)
+                )
+        else:
+            retrieval_results = [
+                (subclaims[0], self.retriever.retrieve_evidence_for_subclaim(subclaims[0], top_k=3))
+            ] if subclaims else []
+
+        wiki_count = 0
+        news_count = 0
+        for sub, (evidence_items, citations) in retrieval_results:
             for cite in citations:
                 self.graph_store.add_citation(cite.source_from_url, cite.source_to_url, cite.relationship)
             for ev in evidence_items:
+                if ev.source_type in ("wikipedia", "wikidata"):
+                    wiki_count += 1
+                else:
+                    news_count += 1
                 self.graph_store.add_evidence(ev, target_claim_id=sub.id)
 
-        yield {"type": "stage", "stage": 3, "name": "Building FalkorDB Graph", "detail": "Constructing graph relationships & computing PageRank source trust scores..."}
+        # Stage 3: Building FalkorDB Graph
         trust_scores = self.trust_engine.compute_source_trust()
+        graph_counts = self.graph_store.get_counts()
+        yield {
+            "type": "stage",
+            "stage": 3,
+            "name": "Building FalkorDB Graph",
+            "detail": f"Graph: {graph_counts['total_nodes']} nodes, {graph_counts['total_edges']} edges. PageRank computed."
+        }
 
-        yield {"type": "stage", "stage": 4, "name": "Computing Verdict", "detail": "Executing Cypher graph queries to evaluate evidence weights & claim verification..."}
+        # Stage 4: Computing Verdict via Cypher
         verdict_res: VerdictResult = self.verdict_engine.evaluate_claim(claim_id=claim_id)
+        yield {
+            "type": "stage",
+            "stage": 4,
+            "name": "Computing Verdict",
+            "detail": f"Verdict: {verdict_res.verdict} (Confidence: {verdict_res.confidence * 100:.1f}%)"
+        }
 
-        yield {"type": "stage", "stage": 5, "name": "Proof Path Extraction", "detail": "Traversing FalkorDB evidence chains to extract ranked proof path..."}
+        # Stage 5: Proof Path Extraction
         proof_steps = self.proof_path_engine.get_ranked_proof_path(root_claim_id=claim_id)
         proof_path_text = self.proof_path_engine.format_proof_path(proof_steps)
         one_line_proof = self.proof_path_engine.get_one_line_summary(proof_steps)
-        graph_counts = self.graph_store.get_counts()
+        yield {
+            "type": "stage",
+            "stage": 5,
+            "name": "Proof Path Extraction",
+            "detail": f"Extracted {len(proof_steps)} ranked proof step(s) in FalkorDB."
+        }
 
         final_result = {
             "claim_id": claim_id,
@@ -234,4 +289,3 @@ class VerdictAgent:
         }
 
         yield {"type": "complete", "result": final_result}
-

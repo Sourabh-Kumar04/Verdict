@@ -56,16 +56,113 @@ class ClaimDecomposer:
         "or", "as", "also", "has", "had", "have", "first", "second"
     }
 
+    QUESTION_AUXILIARIES = {
+        "did", "does", "do", "was", "were", "is", "are", "has", "have", "had",
+        "can", "could", "will", "would", "should"
+    }
+
     def __init__(self, prefix: str = "subclaim"):
         self.prefix = prefix
+
+    def _normalize_question_to_claim(self, text: str) -> str:
+        """
+        Normalizes judge questions into declarative factual assertions.
+        e.g., 'did apollo 11 land on mars?' -> 'Apollo 11 landed on Mars.'
+              'is the earth flat?' -> 'The Earth is flat.'
+              'was Marie Curie born in France?' -> 'Marie Curie was born in France.'
+        """
+        cleaned = text.strip()
+        if not cleaned:
+            return cleaned
+
+        is_question = cleaned.endswith("?") or bool(
+            re.match(r"^(?:did|does|do|was|were|is|are|has|have|had|can|could|will|would)\s+", cleaned, re.IGNORECASE)
+        )
+        if not is_question:
+            return cleaned
+
+        cleaned = cleaned.rstrip("?").strip()
+
+        # 1. Did <subject> <verb> <rest>? -> <subject> <past_verb> <rest>
+        m = re.match(
+            r"^did\s+(.+?)\s+(land|cause|discover|invent|build|create|write|reach|visit|destroy|assassinate|start|end|win|lose|die|kill|make|form|find)\b(.*)$",
+            cleaned,
+            re.IGNORECASE
+        )
+        if m:
+            subj = m.group(1).strip()
+            verb = m.group(2).lower()
+            rest = m.group(3).strip()
+            irregulars = {
+                "land": "landed", "cause": "caused", "discover": "discovered", "invent": "invented",
+                "build": "built", "create": "created", "write": "wrote", "reach": "reached",
+                "visit": "visited", "destroy": "destroyed", "assassinate": "assassinated",
+                "start": "started", "end": "ended", "win": "won", "lose": "lost",
+                "die": "died", "kill": "killed", "make": "made", "find": "found"
+            }
+            past = irregulars.get(verb, verb + "ed")
+            res = f"{subj} {past} {rest}".strip()
+            return res[0].upper() + res[1:]
+
+        # 2. Was / Were <subject> <predicate>? -> <subject> was/were <predicate>
+        m = re.match(
+            r"^(was|were)\s+(.+?)\s+(born|built|completed|designed|founded|created|located|written|elected|killed|first|part|a|an|the|in|on|at|true|false)\b(.*)$",
+            cleaned,
+            re.IGNORECASE
+        )
+        if m:
+            aux = m.group(1).lower()
+            subj = m.group(2).strip()
+            first_p = m.group(3).strip()
+            rest = m.group(4).strip()
+            res = f"{subj} {aux} {first_p} {rest}".strip()
+            return res[0].upper() + res[1:]
+
+        # 3. Is / Are <subject> <predicate>? -> <subject> is/are <predicate>
+        m = re.match(
+            r"^(is|are)\s+(.+?)\s+(flat|round|safe|dangerous|real|fake|true|false|in|on|at|a|an|the|connected|related|alive|dead)\b(.*)$",
+            cleaned,
+            re.IGNORECASE
+        )
+        if m:
+            aux = m.group(1).lower()
+            subj = m.group(2).strip()
+            first_p = m.group(3).strip()
+            rest = m.group(4).strip()
+            res = f"{subj} {aux} {first_p} {rest}".strip()
+            return res[0].upper() + res[1:]
+
+        # 4. Does <subject> <verb> <rest>? -> <subject> <verb_s> <rest>
+        m = re.match(r"^does\s+(.+?)\s+(cause|have|lead to|contain)\b(.*)$", cleaned, re.IGNORECASE)
+        if m:
+            subj = m.group(1).strip()
+            verb = m.group(2).lower()
+            rest = m.group(3).strip()
+            v_s = "causes" if verb == "cause" else ("has" if verb == "have" else (verb + "s"))
+            res = f"{subj} {v_s} {rest}".strip()
+            return res[0].upper() + res[1:]
+
+        cleaned_no_aux = re.sub(
+            r"^(?:did|does|do|was|were|is|are|has|have|had|can|could|will|would)\s+",
+            "",
+            cleaned,
+            flags=re.IGNORECASE
+        ).strip()
+        if cleaned_no_aux:
+            return cleaned_no_aux[0].upper() + cleaned_no_aux[1:]
+        return cleaned
 
     def decompose(self, claim: str) -> List[SubClaim]:
         """
         Decomposes a factual claim into a list of atomic SubClaim objects.
+        Normalizes questions and handles compound conjunctions.
         """
         text = sanitize_claim(claim)
         if not text:
             return []
+
+        # Normalize question to declarative statement
+        text = self._normalize_question_to_claim(text)
 
         # Remove trailing period for processing
         cleaned = text.rstrip(".")
@@ -128,9 +225,10 @@ class ClaimDecomposer:
         """Finds the main subject of the opening clause."""
         matches = self.ENTITY_PATTERN.findall(text)
         if matches:
-            first_entity = matches[0].strip()
-            if len(first_entity) > 2:
-                return first_entity
+            for m in matches:
+                cand = m.strip()
+                if cand.lower() not in self.QUESTION_AUXILIARIES and len(cand) > 2:
+                    return cand
 
         # Fallback: take first 2-3 words before verb
         words = text.split()
@@ -161,9 +259,25 @@ class ClaimDecomposer:
         entities = []
         for m in raw_matches:
             cleaned = m.strip()
-            if cleaned.lower() not in self.STOPWORDS and len(cleaned) > 1:
+            cleaned = re.sub(r'^(?:Did|Does|Do|Was|Were|Is|Are|Has|Have|Had)\s+', '', cleaned, flags=re.IGNORECASE).strip()
+            if cleaned.lower() not in self.STOPWORDS and cleaned.lower() not in self.QUESTION_AUXILIARIES and len(cleaned) > 1:
                 if cleaned not in entities:
                     entities.append(cleaned)
+
+        if len(entities) < 2:
+            words = re.findall(r'\b[a-zA-Z0-9_-]+\b', text)
+            for w in words:
+                wl = w.lower()
+                if (
+                    wl not in self.STOPWORDS
+                    and wl not in self.QUESTION_AUXILIARIES
+                    and wl not in {"cause", "causes", "caused", "land", "lands", "landed"}
+                    and len(wl) > 3
+                ):
+                    cand = w[0].upper() + w[1:]
+                    if cand not in entities and w not in entities:
+                        entities.append(cand)
+
         return entities
 
     def _extract_keywords(self, text: str) -> List[str]:
@@ -171,7 +285,7 @@ class ClaimDecomposer:
         keywords = []
         for w in words:
             wl = w.lower()
-            if wl not in self.STOPWORDS and len(wl) > 2:
+            if wl not in self.STOPWORDS and wl not in self.QUESTION_AUXILIARIES and len(wl) > 2:
                 if w not in keywords:
                     keywords.append(w)
         return keywords

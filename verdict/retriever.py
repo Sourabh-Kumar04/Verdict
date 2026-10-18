@@ -6,11 +6,49 @@ Extracts factual snippets, source metadata, citation links, and evaluates eviden
 from __future__ import annotations
 import re
 import urllib.parse
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Tuple
 import requests
 
 from verdict.claim_decomposer import SubClaim
+
+
+class SimpleMemoryCache:
+    """Thread-safe bounded in-memory cache for API responses."""
+    def __init__(self, maxsize: int = 1024):
+        self._cache: Dict[str, Any] = {}
+        self._lock = threading.Lock()
+        self._maxsize = maxsize
+
+    def get(self, key: str) -> Optional[Any]:
+        with self._lock:
+            return self._cache.get(key)
+
+    def set(self, key: str, value: Any) -> None:
+        with self._lock:
+            if len(self._cache) >= self._maxsize:
+                keys_to_remove = list(self._cache.keys())[: max(1, self._maxsize // 5)]
+                for k in keys_to_remove:
+                    self._cache.pop(k, None)
+            self._cache[key] = value
+
+    def clear(self) -> None:
+        with self._lock:
+            self._cache.clear()
+
+
+_wiki_search_cache = SimpleMemoryCache()
+_wiki_summary_cache = SimpleMemoryCache()
+_wikidata_cache = SimpleMemoryCache()
+
+
+def clear_retriever_cache():
+    """Clears all in-memory retriever caches."""
+    _wiki_search_cache.clear()
+    _wiki_summary_cache.clear()
+    _wikidata_cache.clear()
 
 
 @dataclass
@@ -47,7 +85,7 @@ class EvidenceRetriever:
     or when verifying recent events where static encyclopedias lag.
     """
 
-    USER_AGENT = "VerdictAgent/1.0 (Hackathon Track 1; connected-data-agent; contact@example.com)"
+    USER_AGENT = "VerdictAgent/1.1 (https://github.com/graph-hacks-verdict; verdict-agent@research-connected.org)"
     WIKI_SEARCH_API = "https://en.wikipedia.org/w/api.php"
     WIKI_REST_API = "https://en.wikipedia.org/api/rest_v1/page/summary"
     WIKIDATA_API = "https://www.wikidata.org/w/api.php"
@@ -71,6 +109,12 @@ class EvidenceRetriever:
             serpapi_key=serpapi_key
         )
 
+    def clear_cache(self) -> None:
+        """Clears in-memory caches."""
+        clear_retriever_cache()
+        if hasattr(self.news_retriever, "clear_cache"):
+            self.news_retriever.clear_cache()
+
     def retrieve_evidence_for_subclaim(
         self,
         subclaim: SubClaim,
@@ -78,31 +122,52 @@ class EvidenceRetriever:
     ) -> Tuple[List[EvidenceItem], List[CitationLink]]:
         """
         Retrieves top-k evidence items and cross-source citations for a subclaim.
+        Parallelizes searches and summary fetches across thread pool.
         """
         evidence_list: List[EvidenceItem] = []
         citations: List[CitationLink] = []
 
-        # 1. Search Wikipedia
+        # 1 & 2. Concurrently execute Wikipedia and Wikidata searches
         search_query = self._build_search_query(subclaim)
-        wiki_pages = self._search_wikipedia(search_query, limit=top_k)
-        # Also ensure primary named entity article is retrieved if distinct
-        if subclaim.entities and subclaim.entities[0].lower() != search_query.lower():
-            primary_pages = self._search_wikipedia(subclaim.entities[0], limit=1)
-            for p in primary_pages:
-                if p.get("title") and not any(existing.get("title") == p.get("title") for existing in wiki_pages):
-                    wiki_pages.insert(0, p)
+        wikidata_query = self._build_wikidata_query(subclaim)
+        primary_entity = (
+            subclaim.entities[0]
+            if (subclaim.entities and subclaim.entities[0].lower() != search_query.lower())
+            else None
+        )
+
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            fut_wiki = executor.submit(self._search_wikipedia, search_query, top_k)
+            fut_wikidata = executor.submit(self._search_wikidata, wikidata_query, 2)
+            fut_primary = (
+                executor.submit(self._search_wikipedia, primary_entity, 1)
+                if primary_entity
+                else None
+            )
+
+            wiki_pages = fut_wiki.result()
+            wikidata_entities = fut_wikidata.result()
+            if fut_primary:
+                primary_pages = fut_primary.result()
+                for p in primary_pages:
+                    if p.get("title") and not any(existing.get("title") == p.get("title") for existing in wiki_pages):
+                        wiki_pages.insert(0, p)
+
+        # Concurrently fetch Wikipedia page summaries
+        valid_pages = [p for p in wiki_pages if p.get("title")]
+        if valid_pages:
+            with ThreadPoolExecutor(max_workers=min(4, len(valid_pages))) as executor:
+                page_summaries = list(
+                    executor.map(lambda p: (p.get("title", ""), self._get_wikipedia_summary(p.get("title", ""))), valid_pages)
+                )
+        else:
+            page_summaries = []
 
         ev_idx = 1
-        for page in wiki_pages:
-            title = page.get("title", "")
-            if not title:
-                continue
-
-            summary, page_url = self._get_wikipedia_summary(title)
+        for title, (summary, page_url) in page_summaries:
             if not summary:
                 continue
 
-            # Extract best candidate sentences from summary
             sentences = self._split_sentences(summary)
             for sent in sentences:
                 stance, weight = self._evaluate_stance(subclaim, sent)
@@ -121,9 +186,7 @@ class EvidenceRetriever:
                     evidence_list.append(ev_item)
                     ev_idx += 1
 
-        # 2. Search Wikidata for structured entity facts using cleaned entity names
-        wikidata_query = self._build_wikidata_query(subclaim)
-        wikidata_entities = self._search_wikidata(wikidata_query, limit=2)
+        # Process Wikidata entity facts
         for ent in wikidata_entities:
             ent_id = ent.get("id")
             ent_label = ent.get("label", "")
@@ -148,8 +211,6 @@ class EvidenceRetriever:
                     evidence_list.append(ev_item)
                     ev_idx += 1
 
-            # Cross-source citation links for PageRank:
-            # Wikipedia articles cite Wikidata items and primary sources
             for ev in evidence_list:
                 if ev.source_type == "wikipedia" and ev.source_url != ent_url:
                     citations.append(CitationLink(
@@ -159,7 +220,6 @@ class EvidenceRetriever:
                     ))
 
         # 3. SECONDARY: Live Web/News Evidence
-        # Triggered when Wikipedia/Wikidata has gaps, or when claim refers to recent events.
         if self.news_mode != "disabled":
             should_fetch_news = False
             if self.news_mode == "always":
@@ -252,24 +312,35 @@ class EvidenceRetriever:
 
     def _build_search_query(self, subclaim: SubClaim) -> str:
         """Constructs an effective search query from subclaim entities and keywords."""
-        if subclaim.entities:
-            query = " ".join(subclaim.entities)
-            if subclaim.time_expression and subclaim.time_expression not in query:
-                query += f" {subclaim.time_expression}"
-            return query
-        # Fallback to keywords
-        return " ".join(subclaim.keywords[:5])
+        parts = []
+        for ent in subclaim.entities:
+            if ent.lower() not in [p.lower() for p in parts]:
+                parts.append(ent)
+        for kw in subclaim.keywords:
+            if kw.lower() not in [p.lower() for p in parts] and len(kw) > 2:
+                parts.append(kw)
+        if subclaim.time_expression and subclaim.time_expression not in parts:
+            parts.append(subclaim.time_expression)
+
+        query = " ".join(parts[:5]).strip()
+        if not query:
+            query = subclaim.text.rstrip(".")
+        return query
 
     def _build_wikidata_query(self, subclaim: SubClaim) -> str:
         """Constructs a clean entity search query for Wikidata."""
         if subclaim.entities:
-            # Pick first entity and strip leading 'The ', 'A '
             raw = subclaim.entities[0]
             cleaned = re.sub(r'^(The|A|An)\s+', '', raw, flags=re.IGNORECASE)
             return cleaned.strip()
         return " ".join(subclaim.keywords[:2])
 
     def _search_wikipedia(self, query: str, limit: int = 3) -> List[Dict[str, Any]]:
+        cache_key = f"{query.lower().strip()}_{limit}"
+        cached = _wiki_search_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         try:
             resp = self.session.get(
                 self.WIKI_SEARCH_API,
@@ -278,11 +349,18 @@ class EvidenceRetriever:
             )
             resp.raise_for_status()
             data = resp.json()
-            return data.get("query", {}).get("search", [])[:limit]
+            results = data.get("query", {}).get("search", [])[:limit]
+            _wiki_search_cache.set(cache_key, results)
+            return results
         except Exception:
             return []
 
     def _get_wikipedia_summary(self, title: str) -> Tuple[str, str]:
+        cache_key = title.lower().strip()
+        cached = _wiki_summary_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         encoded_title = urllib.parse.quote(title.replace(" ", "_"))
         url = f"{self.WIKI_REST_API}/{encoded_title}"
         try:
@@ -293,11 +371,18 @@ class EvidenceRetriever:
             desktop_url = data.get("content_urls", {}).get("desktop", {}).get(
                 "page", f"https://en.wikipedia.org/wiki/{encoded_title}"
             )
-            return extract, desktop_url
+            result = (extract, desktop_url)
+            _wiki_summary_cache.set(cache_key, result)
+            return result
         except Exception:
             return "", f"https://en.wikipedia.org/wiki/{encoded_title}"
 
     def _search_wikidata(self, query: str, limit: int = 2) -> List[Dict[str, Any]]:
+        cache_key = f"{query.lower().strip()}_{limit}"
+        cached = _wikidata_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         try:
             resp = self.session.get(
                 self.WIKIDATA_API,
@@ -306,12 +391,13 @@ class EvidenceRetriever:
             )
             resp.raise_for_status()
             data = resp.json()
-            return data.get("search", [])[:limit]
+            results = data.get("search", [])[:limit]
+            _wikidata_cache.set(cache_key, results)
+            return results
         except Exception:
             return []
 
     def _split_sentences(self, text: str) -> List[str]:
-        # Simple sentence splitter on punctuation followed by space
         return [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if len(s.strip()) > 15]
 
     def _evaluate_stance(self, subclaim: SubClaim, evidence_text: str) -> Tuple[str, float]:
@@ -319,8 +405,8 @@ class EvidenceRetriever:
         Determines if evidence SUPPORTS, REFUTES, or QUALIFIES the subclaim.
         Computes stance weight based on semantic overlap and contradiction cues.
         """
-        claim_text = subclaim.text.lower()
-        ev_lower = evidence_text.lower()
+        claim_text = subclaim.text.lower().replace("’", "'").replace("‘", "'")
+        ev_lower = evidence_text.lower().replace("’", "'").replace("‘", "'")
 
         # Keyword overlap
         claim_keywords = set(w.lower() for w in subclaim.keywords if len(w) > 2)
@@ -336,16 +422,13 @@ class EvidenceRetriever:
         years_in_ev = re.findall(r'\b(1[6-9][0-9]{2}|20[0-3][0-9])\b', ev_lower)
 
         # Contradiction detection:
-        # e.g. Claim: Apollo 11 landed on Mars. Ev: Apollo 11 landed humans on the Moon.
-        # Key locations/targets:
         known_celestial = {"moon", "mars", "venus", "jupiter", "saturn", "mercury"}
         claim_celestial = {w for w in claim_keywords if w in known_celestial}
         ev_celestial = {w for w in ev_words if w in known_celestial}
 
         if claim_celestial and ev_celestial:
             if claim_celestial != ev_celestial:
-                # Direct contradiction in key target entity
-                return "REFUTES", 0.92
+                return "REFUTES", 0.95
 
         # Check location / origin / birthplace contradiction
         us_locs = {"u.s.", "u.s", "usa", "united states", "hawaii", "honolulu"}
@@ -358,21 +441,25 @@ class EvidenceRetriever:
         # Check temporal contradiction if year is specified
         if claim_year and years_in_ev:
             if claim_year in years_in_ev:
-                # Exact year match + high overlap
                 if overlap_ratio >= 0.4:
                     return "SUPPORTS", min(0.95, 0.6 + overlap_ratio * 0.4)
             else:
-                # If subject is explicitly matched and event year is different
                 if overlap_ratio >= 0.5:
                     return "REFUTES", 0.85
 
         # Check explicit debunking or negated predicate phrases
         debunk_match = re.search(
-            r'\b(was not|were not|is not|did not|never|debunked|refuted|fictional|myth|false|disproved|untrue|contrary to|pants on fire|mostly false|fiction|unproven|unfounded|baseless|ineligible|misleading|incorrect)\b|^no,\s+|\bno,\s+',
+            r"\b(do not|does not|did not|doesn't|don't|cannot|can not|can't|never|was not|were not|is not|are not|has not|have not|had not)\s+(?:[a-z0-9_-]+\s+){0,4}(?:cause|link|support|show|lead to|result in|find|corroborate|prove|attribute|relate|imply|indicate|originate)\b|"
+            r"\b(no relationship|no link|no evidence|no connection|no causal|no correlation|no association|no proof|lack of evidence|lack of link|unrelated)\b|"
+            r"\b(cannot be attributed|not attributable|not associated with|not linked to|not caused by)\b|"
+            r"\b(debunked|refuted|fictional|myth|false|disproved|disproven|untrue|contrary to|pants on fire|mostly false|fiction|unproven|unfounded|baseless|ineligible|misleading|incorrect|retracted|fraudulent|hoax|conspiracy)\b|"
+            r"\b(failed to replicate|no scientific basis|rejected by the scientific community)\b|"
+            r"\b(not believe|doesn't show|does not show|don't believe)\b|"
+            r"^no,\s+|\bno,\s+",
             ev_lower
         )
-        if debunk_match and overlap_ratio >= 0.25:
-            return "REFUTES", 0.92
+        if debunk_match and overlap_ratio >= 0.20:
+            return "REFUTES", 0.95
 
         # Multi-entity relation check: if claim links multiple entities, a sentence mentioning only one cannot SUPPORT
         entities_present = sum(1 for ent in subclaim.entities if ent.lower() in ev_lower)
@@ -393,7 +480,7 @@ class EvidenceRetriever:
         if overlap_ratio >= 0.6 and (not subclaim.entities or entity_ratio >= 0.5):
             return "SUPPORTS", min(0.95, overlap_ratio)
         elif overlap_ratio >= 0.35 and (not subclaim.entities or entity_ratio >= 0.5):
-            return "SUPPORTS", 0.65
+            return "SUPPORTS", 0.70
         elif overlap_ratio >= 0.2:
             return "QUALIFIES", 0.40
         else:

@@ -5,6 +5,7 @@ No direct LLM call may bypass the graph.
 """
 
 from __future__ import annotations
+import math
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 
@@ -15,7 +16,7 @@ from verdict.graph_store import GraphStore
 class SubVerdict:
     subclaim_id: str
     text: str
-    verdict: str  # "SUPPORTED" | "REFUTED" | "UNVERIFIED"
+    verdict: str  # "SUPPORTED" | "REFUTES" | "UNVERIFIED"
     support_score: float
     refute_score: float
     qualify_score: float
@@ -26,7 +27,7 @@ class SubVerdict:
 class VerdictResult:
     claim_id: str
     claim_text: str
-    verdict: str  # "SUPPORTED" | "REFUTED" | "UNVERIFIED"
+    verdict: str  # "SUPPORTED" | "REFUTES" | "UNVERIFIED"
     confidence: float
     reason: str
     subverdicts: List[SubVerdict] = field(default_factory=list)
@@ -145,6 +146,26 @@ class VerdictEngine:
                 evidence_count=cnt
             ))
 
+        def _sub_conf(sv: SubVerdict) -> float:
+            sup, ref = sv.support_score, sv.refute_score
+            if sv.verdict == "SUPPORTED":
+                # Epistemic evidence saturation: 1 solid source >= 0.72, multiple sources >= 0.85
+                base = 1.0 - 0.42 * math.exp(-1.4 * max(0.0, sup))
+                margin = (sup - ref) / max(0.001, sup + ref) if (sup + ref) > 0 else 1.0
+                return min(0.98, max(0.50, base * math.sqrt(max(0.1, margin))))
+            elif sv.verdict == "REFUTED":
+                # Epistemic refutation authority: strong refutations score 0.90 - 0.99
+                # For an uncontested refutation (sup == 0), authoritative sources decisively refute
+                if sup == 0.0:
+                    base = 1.0 - 0.15 * math.exp(-2.0 * max(0.0, ref))
+                else:
+                    base = 1.0 - 0.25 * math.exp(-1.5 * max(0.0, ref))
+                margin = (ref - sup) / max(0.001, sup + ref) if (sup + ref) > 0 else 1.0
+                if (ref >= 0.8 and ref >= (sup * 1.3)) or (sup == 0.0 and ref >= 0.40):
+                    return min(0.99, max(0.92, base))
+                return min(0.99, max(0.70, base * math.sqrt(max(0.2, margin))))
+            return 0.30
+
         # Step 4: Overall verdict synthesis
         if total_ev_count == 0:
             final_verdict = "UNVERIFIED"
@@ -152,11 +173,16 @@ class VerdictEngine:
             reason = "Abstained: Insufficient public evidence retrieved to corroborate or refute claim."
         elif has_refutation:
             final_verdict = "REFUTED"
-            confidence = min(0.99, max(sv.refute_score for sv in subverdicts) / 1.5)
+            ref_confs = [_sub_conf(sv) for sv in subverdicts if sv.verdict == "REFUTED"]
+            confidence = min(0.99, max(ref_confs) if ref_confs else 0.90)
             reason = "Refuted: Contradicted by authoritative evidence graph sources."
         elif all_supported and not has_abstention:
             final_verdict = "SUPPORTED"
-            confidence = min(0.99, min(sv.support_score for sv in subverdicts) / 1.5)
+            sup_confs = [_sub_conf(sv) for sv in subverdicts]
+            if sup_confs:
+                confidence = min(0.98, 0.70 * min(sup_confs) + 0.30 * (sum(sup_confs) / len(sup_confs)))
+            else:
+                confidence = 0.75
             reason = "Supported: All claim components verified by authoritative evidence graph sources."
         else:
             final_verdict = "UNVERIFIED"

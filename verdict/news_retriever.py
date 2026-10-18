@@ -10,6 +10,8 @@ import os
 import re
 import urllib.parse
 import email.utils
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any, Optional, Tuple, TYPE_CHECKING
 import xml.etree.ElementTree as ET
@@ -19,6 +21,37 @@ from verdict.claim_decomposer import SubClaim
 
 if TYPE_CHECKING:
     from verdict.retriever import EvidenceItem, CitationLink
+
+
+class SimpleMemoryCache:
+    """Thread-safe bounded in-memory cache for news responses."""
+    def __init__(self, maxsize: int = 1024):
+        self._cache: Dict[str, Any] = {}
+        self._lock = threading.Lock()
+        self._maxsize = maxsize
+
+    def get(self, key: str) -> Optional[Any]:
+        with self._lock:
+            return self._cache.get(key)
+
+    def set(self, key: str, value: Any) -> None:
+        with self._lock:
+            if len(self._cache) >= self._maxsize:
+                keys_to_remove = list(self._cache.keys())[: max(1, self._maxsize // 5)]
+                for k in keys_to_remove:
+                    self._cache.pop(k, None)
+            self._cache[key] = value
+
+    def clear(self) -> None:
+        with self._lock:
+            self._cache.clear()
+
+
+_news_rss_cache = SimpleMemoryCache()
+
+
+def clear_news_cache():
+    _news_rss_cache.clear()
 
 
 def parse_publication_date(date_str: Optional[str]) -> Tuple[Optional[datetime], str]:
@@ -117,9 +150,7 @@ def clean_html_snippet(raw_html: str) -> str:
     """Strips HTML tags and unescapes entities from RSS descriptions."""
     if not raw_html:
         return ""
-    # Strip HTML tags
     cleaned = re.sub(r"<[^>]+>", " ", raw_html)
-    # Unescape common html entities
     cleaned = cleaned.replace("&nbsp;", " ").replace("&amp;", "&").replace("&quot;", '"').replace("&#39;", "'")
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
     return cleaned
@@ -133,7 +164,7 @@ class LiveNewsRetriever:
     reliable, requires no API key, and provides rich publication timestamps and snippets.
     """
 
-    USER_AGENT = "VerdictAgent/1.0 (Hackathon Track 1; connected-data-agent; contact@example.com)"
+    USER_AGENT = "VerdictAgent/1.1 (https://github.com/graph-hacks-verdict; verdict-agent@research-connected.org)"
     GOOGLE_NEWS_RSS_URL = "https://news.google.com/rss/search"
     SERPAPI_URL = "https://serpapi.com/search.json"
 
@@ -147,6 +178,10 @@ class LiveNewsRetriever:
         self.session.headers.update({"User-Agent": self.USER_AGENT})
         self.timeout = timeout
         self.serpapi_key = serpapi_key if serpapi_key is not None else os.environ.get("SERPAPI_API_KEY")
+
+    def clear_cache(self) -> None:
+        """Clears in-memory news caches."""
+        clear_news_cache()
 
     def retrieve_news_for_subclaim(
         self,
@@ -241,7 +276,7 @@ class LiveNewsRetriever:
     ) -> Tuple[List[EvidenceItem], List[CitationLink]]:
         """
         Runs site-scoped queries (site:snopes.com, site:politifact.com, site:factcheck.org)
-        through Google News RSS to fetch dedicated fact-checker assessments.
+        through Google News RSS concurrently to fetch dedicated fact-checker assessments.
         Tags results as source_type='fact_checker' with authoritative trust weights.
         """
         from verdict.retriever import EvidenceItem, CitationLink
@@ -249,18 +284,24 @@ class LiveNewsRetriever:
         base_query = self._build_news_query(subclaim)
         evidence_list: List[EvidenceItem] = []
         citations: List[CitationLink] = []
-        ev_idx = start_idx
 
-        for site_info in self.FACT_CHECK_SITES:
+        def _fetch_site(site_info: Dict[str, str]) -> Tuple[Dict[str, str], List[Dict[str, Any]]]:
             domain = site_info["domain"]
-            site_name = site_info["name"]
-            root_url = site_info["root_url"]
-
             site_query = f"{base_query} site:{domain}"
             try:
                 articles = self._search_google_news_rss(site_query, limit=top_k_per_site)
             except Exception:
                 articles = []
+            return site_info, articles
+
+        # Parallelize across fact check sites
+        with ThreadPoolExecutor(max_workers=len(self.FACT_CHECK_SITES)) as executor:
+            site_results = list(executor.map(_fetch_site, self.FACT_CHECK_SITES))
+
+        ev_idx = start_idx
+        for site_info, articles in site_results:
+            site_name = site_info["name"]
+            root_url = site_info["root_url"]
 
             for art in articles:
                 title = art.get("title", "").strip()
@@ -354,7 +395,12 @@ class LiveNewsRetriever:
         return results
 
     def _search_google_news_rss(self, query: str, limit: int = 3) -> List[Dict[str, Any]]:
-        """Queries Google News RSS feed for free, real-time public news."""
+        """Queries Google News RSS feed for free, real-time public news with caching."""
+        cache_key = f"{query.lower().strip()}_{limit}"
+        cached = _news_rss_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         params = {
             "q": query,
             "hl": "en-US",
@@ -393,6 +439,8 @@ class LiveNewsRetriever:
                 "source_domain": source_domain,
                 "published_date": pub_date
             })
+
+        _news_rss_cache.set(cache_key, results)
         return results
 
     def _evaluate_news_stance(self, subclaim: SubClaim, evidence_text: str) -> Tuple[str, float]:
@@ -400,8 +448,8 @@ class LiveNewsRetriever:
         Evaluates whether a news candidate supports, refutes, or qualifies the subclaim.
         Checks entity coverage, lexical overlap, negation/debunk terms, and temporal coherence.
         """
-        claim_text = subclaim.text.lower()
-        ev_lower = evidence_text.lower()
+        claim_text = subclaim.text.lower().replace("’", "'").replace("‘", "'")
+        ev_lower = evidence_text.lower().replace("’", "'").replace("‘", "'")
 
         claim_keywords = set(w.lower() for w in subclaim.keywords if len(w) > 2)
         if not claim_keywords:
@@ -413,11 +461,17 @@ class LiveNewsRetriever:
 
         # Check explicit debunking or contradiction cues in news / fact-checks
         debunk_match = re.search(
-            r"\b(debunked|hoax|false|refuted|fake|denied|canceled|cancelled|did not|failed to|untrue|disproven|pants on fire|mostly false|fiction|myth|unproven|unfounded|baseless|ineligible|misleading|incorrect)\b|^no,\s+|\bno,\s+",
+            r"\b(do not|does not|did not|doesn't|don't|cannot|can not|can't|never|was not|were not|is not|are not|has not|have not|had not)\s+(?:[a-z0-9_-]+\s+){0,4}(?:cause|link|support|show|lead to|result in|find|corroborate|prove|attribute|relate|imply|indicate|originate)\b|"
+            r"\b(no relationship|no link|no evidence|no connection|no causal|no correlation|no association|no proof|lack of evidence|lack of link|unrelated)\b|"
+            r"\b(cannot be attributed|not attributable|not associated with|not linked to|not caused by)\b|"
+            r"\b(debunked|hoax|false|refuted|fake|denied|canceled|cancelled|did not|failed to|untrue|disproven|pants on fire|mostly false|fiction|myth|unproven|unfounded|baseless|ineligible|misleading|incorrect)\b|"
+            r"\b(failed to replicate|no scientific basis|rejected by the scientific community)\b|"
+            r"\b(not believe|doesn't show|does not show|don't believe)\b|"
+            r"^no,\s+|\bno,\s+",
             ev_lower
         )
-        if debunk_match and overlap_ratio >= 0.25:
-            return "REFUTES", 0.92
+        if debunk_match and overlap_ratio >= 0.20:
+            return "REFUTES", 0.95
 
         # Check celestial body contradiction (e.g. Apollo 11 Mars vs Moon)
         known_celestial = {"moon", "mars", "venus", "jupiter", "saturn", "mercury"}
