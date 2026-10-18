@@ -257,6 +257,12 @@ Open `http://localhost:8000` in any web browser.
   - `GET /api/investigate/stream?claim=...`: SSE stream with live stage-by-stage progress events.
   - `GET /api/health`: FalkorDB 6.0.1 connectivity and health status.
 
+#### Web Interface Screenshots
+
+| Landing View (YC Minimalist Hero) | Verdict Dossier (Graph Proof & Telemetry) |
+| :---: | :---: |
+| ![Verdict Landing View](docs/screenshot_landing.png) | ![Verdict Dossier View](docs/screenshot_verdict.png) |
+
 ---
 
 ## Honest Limitations
