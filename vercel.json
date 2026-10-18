@@ -1,0 +1,22 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/verdict/static/index.html"
+    },
+    {
+      "source": "/static/(.*)",
+      "destination": "/verdict/static/$1"
+    },
+    {
+      "source": "/docs/(.*)",
+      "destination": "/docs/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/verdict/static/$1"
+    }
+  ]
+}

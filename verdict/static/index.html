@@ -401,6 +401,18 @@
         </div>
       </div>
 
+      <!-- Demo Mode Notification: Honest disclaimer for static Vercel showcase -->
+      <div id="demoNotice" class="hidden mb-8 p-3.5 bg-amber-50/90 border border-amber-200/90 rounded-md font-mono text-xs text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5">
+          <span class="material-symbols-outlined text-amber-600 text-lg shrink-0">info</span>
+          <span><strong class="font-bold">Pre-computed Demo Verdict:</strong> Live engine runs locally via Docker - see README</span>
+        </div>
+        <a href="https://github.com/Sourabh-Kumar04/Verdict#quick-start-docker" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-amber-800 hover:text-amber-950 font-semibold underline underline-offset-2 shrink-0">
+          <span>Docker Instructions</span>
+          <span class="material-symbols-outlined text-[13px]">arrow_forward</span>
+        </a>
+      </div>
+
       <!-- Main Two-Column Layout: Generous gap-14 -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
         
@@ -810,54 +822,135 @@ ORDER BY e.weight DESC</pre>
       },
       REFUTED: {
         claim_id: "claim_apollo_mars",
-        claim: "Apollo 11 landed on Mars",
+        claim: "Apollo 11 landed on Mars in 1969",
         verdict: "REFUTED",
         confidence: 0.99,
         confidence_pct: "99.0%",
         reason: "Refuted: Contradicted by authoritative evidence graph sources.",
         graph_counts: {
-          total_nodes: 17,
-          total_edges: 16,
+          total_nodes: 21,
+          total_edges: 29,
           claims: 2,
-          evidence: 5,
-          sources: 10
+          evidence: 10,
+          sources: 9
         },
         trust_scores: {
-          "https://www.snopes.com": 0.9025,
-          "https://www.politifact.com": 0.9025,
-          "https://www.theregister.com": 0.6491
+          "https://www.snopes.com": 0.9000,
+          "https://www.politifact.com": 0.9000,
+          "https://www.wikidata.org/wiki/Q43653": 0.7727,
+          "https://en.wikipedia.org/wiki/Apollo_11": 0.3396
         },
         proof_steps: [
           {
             claim_id: "sub_apollo",
-            claim_text: "Apollo 11 landed on Mars",
-            evidence_id: "ev_snopes",
-            evidence_text: "Snopes Fact Check: Did Apollo 11 land on Mars? Apollo 11 was the American spaceflight that first landed humans on the Moon.",
-            stance: "REFUTES",
-            weight: 0.95,
-            source_name: "FactCheck: Snopes",
-            source_url: "https://www.snopes.com/fact-check/apollo-11-moon-landing",
-            source_pagerank: 0.90,
-            rank_score: 0.88,
-            published_date: "2022-07-26 07:00:00 UTC",
-            snippet: "Apollo 11 landed humans on the Moon in July 1969, not Mars."
-          },
-          {
-            claim_id: "sub_apollo",
-            claim_text: "Apollo 11 landed on Mars",
+            claim_text: "Apollo 11 landed on Mars in 1969.",
             evidence_id: "ev_politifact",
-            evidence_text: "PolitiFact Verification: Apollo 11 lunar landing historical records confirm landing site at Sea of Tranquility on Earth's Moon.",
+            evidence_text: "The moon landing was real - PolitiFact",
             stance: "REFUTES",
-            weight: 0.92,
+            weight: 0.98,
             source_name: "FactCheck: PolitiFact",
             source_url: "https://www.politifact.com/factchecks/apollo-11-moon",
             source_pagerank: 0.90,
-            rank_score: 0.88,
-            published_date: "2019-05-07 07:00:00 UTC",
-            snippet: "Neil Armstrong and Buzz Aldrin landed the Apollo Lunar Module Eagle on July 20, 1969 on the Moon."
+            rank_score: 0.882,
+            published_date: "2023-05-05 07:00:00 UTC",
+            snippet: "Historical and scientific records confirm the Apollo 11 lunar module landed humans on the Moon in July 1969, not Mars."
+          },
+          {
+            claim_id: "sub_apollo",
+            claim_text: "Apollo 11 landed on Mars in 1969.",
+            evidence_id: "ev_wikidata",
+            evidence_text: "Apollo 11: first Moon landing and fifth crewed flight of the United States Apollo program",
+            stance: "REFUTES",
+            weight: 0.95,
+            source_name: "Wikidata: Apollo 11 (Q43653)",
+            source_url: "https://www.wikidata.org/wiki/Q43653",
+            source_pagerank: 0.7727,
+            rank_score: 0.7341,
+            published_date: "",
+            snippet: "First crewed Moon landing · Landing site: Sea of Tranquility, Earth's Moon"
+          },
+          {
+            claim_id: "sub_apollo",
+            claim_text: "Apollo 11 landed on Mars in 1969.",
+            evidence_id: "ev_wikipedia",
+            evidence_text: "Apollo 11 was the American spaceflight that first landed humans on the Moon",
+            stance: "REFUTES",
+            weight: 0.95,
+            source_name: "Wikipedia: Apollo 11",
+            source_url: "https://en.wikipedia.org/wiki/Apollo_11",
+            source_pagerank: 0.3396,
+            rank_score: 0.3226,
+            published_date: "",
+            snippet: "Apollo 11 was the American spaceflight that first landed humans on the Moon, and the fifth crewed mission of NASA's Apollo program."
           }
         ],
-        one_line_proof: "[REFUTES rank=0.88] 'Apollo 11 landed humans on the Moon in July 1969, not Mars' via FactCheck: Snopes (PageRank: 0.90)"
+        one_line_proof: "[REFUTES rank=0.88] 'The moon landing was real - PolitiFact...' via FactCheck: PolitiFact (PageRank: 0.90)"
+      },
+      OBAMA: {
+        claim_id: "claim_78df7ea8",
+        claim: "Barack Obama was born in Kenya",
+        verdict: "REFUTED",
+        confidence: 0.99,
+        confidence_pct: "99.0%",
+        reason: "Refuted: Contradicted by authoritative evidence graph sources.",
+        graph_counts: {
+          total_nodes: 26,
+          total_edges: 36,
+          claims: 2,
+          evidence: 12,
+          sources: 12
+        },
+        trust_scores: {
+          "https://www.wikidata.org/wiki/Q76": 0.9025,
+          "https://www.politifact.com": 0.9000,
+          "https://en.wikipedia.org/wiki/Barack_Obama": 0.3343,
+          "https://en.wikipedia.org/wiki/Early_life_and_career_of_Barack_Obama": 0.3343
+        },
+        proof_steps: [
+          {
+            claim_id: "subclaim_1",
+            claim_text: "Barack Obama was born in Kenya.",
+            evidence_id: "ev_subclaim_1_8",
+            evidence_text: "Barack Obama: 44th President of the United States (2009–2017)",
+            stance: "REFUTES",
+            weight: 0.95,
+            source_name: "Wikidata: Barack Obama (Q76)",
+            source_url: "https://www.wikidata.org/wiki/Q76",
+            source_pagerank: 0.9025,
+            rank_score: 0.8574,
+            published_date: "",
+            snippet: "44th President of the United States (2009–2017) · Official State of Hawaii birth records confirm birthplace in Honolulu, Hawaii."
+          },
+          {
+            claim_id: "subclaim_1",
+            claim_text: "Barack Obama was born in Kenya.",
+            evidence_id: "ev_subclaim_1_factcheck_11",
+            evidence_text: "Obama Birth Certificate - PolitiFact",
+            stance: "REFUTES",
+            weight: 0.95,
+            source_name: "FactCheck: PolitiFact",
+            source_url: "https://www.politifact.com/factchecks/2011/apr/27/barack-obama/barack-obama-releases-his-long-form-birth-certific/",
+            source_pagerank: 0.90,
+            rank_score: 0.8550,
+            published_date: "2026-07-25 00:32:16 UTC",
+            snippet: "PolitiFact fact-check: Official verification and birth certificate confirm Barack Obama was born in Honolulu, Hawaii on August 4, 1961."
+          },
+          {
+            claim_id: "subclaim_1",
+            claim_text: "Barack Obama was born in Kenya.",
+            evidence_id: "ev_subclaim_1_3",
+            evidence_text: "Barack Obama was born on August 4, 1961, in Honolulu, Hawaii",
+            stance: "REFUTES",
+            weight: 0.95,
+            source_name: "Wikipedia: Early life and career of Barack Obama",
+            source_url: "https://en.wikipedia.org/wiki/Early_life_and_career_of_Barack_Obama",
+            source_pagerank: 0.3343,
+            rank_score: 0.3176,
+            published_date: "",
+            snippet: "Barack Obama, the 44th president of the United States, was born on August 4, 1961, in Honolulu, Hawaii, to Barack Obama, Sr. and Ann Dunham."
+          }
+        ],
+        one_line_proof: "[REFUTES rank=0.86] 'Barack Obama: 44th President of the United States (2009–2017)...' via Wikidata: Barack Obama (Q76) (PageRank: 0.90)"
       },
       UNVERIFIED: {
         claim_id: "claim_nessie",
@@ -919,8 +1012,10 @@ ORDER BY e.weight DESC</pre>
 
         completeAllPipelineSteps();
         document.getElementById('pipelineDetail').textContent = 'Verified in 412ms · 100% Deterministic';
-        if (claimParam && claimParam.toLowerCase().includes('mars')) {
+        if (claimParam && (claimParam.toLowerCase().includes('mars') || claimParam.toLowerCase().includes('apollo'))) {
           simulateState('REFUTED');
+        } else if (claimParam && (claimParam.toLowerCase().includes('obama') || claimParam.toLowerCase().includes('kenya'))) {
+          simulateState('OBAMA');
         } else if (claimParam && claimParam.toLowerCase().includes('ness')) {
           simulateState('UNVERIFIED');
         } else {
@@ -1085,12 +1180,94 @@ ORDER BY e.weight DESC</pre>
           if (data.falkordb_connected) {
             document.getElementById('falkordbStatusText').textContent = 'FalkorDB v6.0.1 Active';
             document.getElementById('falkordbStatus').className = 'flex items-center gap-2 font-mono text-xs text-zinc-600';
-          } else {
-            showFalkorDBDown(data.error, data.falkordb_docker_command);
+            hideDemoNotice();
+            return;
           }
         }
       } catch (e) {
-        console.warn('Health check fetch failed:', e);
+        // Fallback for static hosting (Vercel)
+      }
+      // Running on Vercel or backend offline: Show honest demo mode indicator
+      const statusEl = document.getElementById('falkordbStatus');
+      if (statusEl) {
+        statusEl.className = 'flex items-center gap-2 font-mono text-xs text-amber-700';
+        statusEl.innerHTML = `
+          <span class="relative flex h-2 w-2">
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+          </span>
+          <span id="falkordbStatusText">Demo Mode · Docker for Live Engine</span>
+        `;
+      }
+      showDemoNotice();
+    }
+
+    function showDemoNotice() {
+      const notice = document.getElementById('demoNotice');
+      if (notice) notice.classList.remove('hidden');
+    }
+
+    function hideDemoNotice() {
+      const notice = document.getElementById('demoNotice');
+      if (notice) notice.classList.add('hidden');
+    }
+
+    function getPrecomputedVerdict(claim) {
+      const norm = (claim || '').toLowerCase().trim();
+      if (norm.includes('eiffel') || norm.includes('1889')) {
+        return PRESETS.SUPPORTED;
+      }
+      if (norm.includes('apollo') || norm.includes('mars')) {
+        return PRESETS.REFUTED;
+      }
+      if (norm.includes('obama') || norm.includes('kenya')) {
+        return PRESETS.OBAMA;
+      }
+      if (norm.includes('ness') || norm.includes('newton')) {
+        return PRESETS.UNVERIFIED;
+      }
+      return null;
+    }
+
+    function simulatePipelineStages(onDone) {
+      const stages = [
+        { num: 1, text: 'Decomposing claim into atomic sub-claims...' },
+        { num: 2, text: 'Retrieving evidence from Wikipedia & Fact-Checkers...' },
+        { num: 3, text: 'Building FalkorDB evidence graph & PageRank trust...' },
+        { num: 4, text: 'Executing deterministic Cypher proof queries...' },
+        { num: 5, text: 'Synthesizing formal proof path & verdict...' }
+      ];
+      let i = 0;
+      function next() {
+        if (i < stages.length) {
+          const s = stages[i];
+          for (let k = 1; k < s.num; k++) setStepState(k, 'complete');
+          setStepState(s.num, 'active');
+          document.getElementById('pipelineDetail').textContent = s.text;
+          i++;
+          setTimeout(next, 70);
+        } else {
+          onDone();
+        }
+      }
+      next();
+    }
+
+    function handleBackendUnreachable(claim, errorDetail) {
+      const precomputed = getPrecomputedVerdict(claim);
+      if (precomputed) {
+        simulatePipelineStages(() => {
+          completeAllPipelineSteps();
+          document.getElementById('pipelineDetail').textContent =
+            'Pre-computed demo verdict · Live engine runs locally via Docker - see README';
+          showDemoNotice();
+          renderVerdictResult(precomputed, true);
+        });
+      } else {
+        showAlert(
+          'Live Backend Unreachable (Static Demo Showcase)',
+          `The full Verdict engine runs locally via Docker (see README). On this static Vercel showcase, select one of the 3 pre-computed demo claims above (Eiffel Tower, Apollo 11, or Barack Obama) to inspect full epistemic proof paths.`,
+          'docker run -d -p 6379:6379 -p 3000:3000 --name falkordb-verdict falkordb/falkordb:6.0.1'
+        );
       }
     }
 
@@ -1131,12 +1308,17 @@ ORDER BY e.weight DESC</pre>
       document.getElementById('toggleRefuted').className = 'cursor-pointer text-zinc-400 hover:text-zinc-900 pb-1 font-mono text-xs transition-colors';
       document.getElementById('toggleUnverified').className = 'cursor-pointer text-zinc-400 hover:text-zinc-900 pb-1 font-mono text-xs transition-colors';
 
+      showDemoNotice();
+
       if (state === 'SUPPORTED') {
         document.getElementById('toggleSupported').className = 'cursor-pointer text-emerald-600 font-bold border-b-2 border-emerald-600 pb-1 font-mono text-xs transition-colors';
         renderVerdictResult(PRESETS.SUPPORTED);
       } else if (state === 'REFUTED') {
         document.getElementById('toggleRefuted').className = 'cursor-pointer text-red-600 font-bold border-b-2 border-red-600 pb-1 font-mono text-xs transition-colors';
         renderVerdictResult(PRESETS.REFUTED);
+      } else if (state === 'OBAMA') {
+        document.getElementById('toggleRefuted').className = 'cursor-pointer text-red-600 font-bold border-b-2 border-red-600 pb-1 font-mono text-xs transition-colors';
+        renderVerdictResult(PRESETS.OBAMA);
       } else if (state === 'UNVERIFIED') {
         document.getElementById('toggleUnverified').className = 'cursor-pointer text-amber-600 font-bold border-b-2 border-amber-600 pb-1 font-mono text-xs transition-colors';
         renderVerdictResult(PRESETS.UNVERIFIED);
@@ -1225,6 +1407,7 @@ ORDER BY e.weight DESC</pre>
               setStepState(stageNum, 'active');
               document.getElementById('pipelineDetail').textContent = data.detail || data.name;
             } else if (data.type === 'complete') {
+              hideDemoNotice();
               completeAllPipelineSteps();
               const elapsed = Math.round(performance.now() - startTime);
               document.getElementById('pipelineDetail').textContent = `Verified in ${elapsed}ms · 100% Deterministic`;
@@ -1232,9 +1415,9 @@ ORDER BY e.weight DESC</pre>
               finishInvestigation();
               eventSource.close();
             } else if (data.type === 'error') {
-              showFalkorDBDown(data.detail, data.falkordb_docker_command);
-              finishInvestigation();
               eventSource.close();
+              handleBackendUnreachable(claim, data.detail);
+              finishInvestigation();
             }
           } catch (err) {
             console.error('Error parsing SSE event:', err);
@@ -1256,7 +1439,7 @@ ORDER BY e.weight DESC</pre>
     async function fallbackPostInvestigate(claim, startTime) {
       try {
         setStepState(1, 'active');
-        document.getElementById('pipelineDetail').textContent = 'Executing full investigation...';
+        document.getElementById('pipelineDetail').textContent = 'Connecting to FalkorDB engine...';
 
         const res = await fetch('/api/investigate', {
           method: 'POST',
@@ -1265,26 +1448,26 @@ ORDER BY e.weight DESC</pre>
         });
 
         if (res.status === 503) {
-          const errData = await res.json();
-          showFalkorDBDown(errData.detail, errData.falkordb_docker_command);
+          const errData = await res.json().catch(() => ({}));
+          handleBackendUnreachable(claim, errData.detail || 'FalkorDB service unavailable');
           finishInvestigation();
           return;
         }
 
         if (!res.ok) {
-          const errText = await res.text();
-          showAlert('Investigation Error', errText);
+          handleBackendUnreachable(claim, `HTTP ${res.status}`);
           finishInvestigation();
           return;
         }
 
         const data = await res.json();
+        hideDemoNotice();
         completeAllPipelineSteps();
         const elapsed = Math.round(performance.now() - startTime);
         document.getElementById('pipelineDetail').textContent = `Verified in ${elapsed}ms · 100% Deterministic`;
         renderVerdictResult(data, true);
       } catch (e) {
-        showAlert('Network Error', e.message || 'Failed to reach Verdict backend.');
+        handleBackendUnreachable(claim, e.message || 'Failed to reach Verdict backend.');
       } finally {
         finishInvestigation();
       }

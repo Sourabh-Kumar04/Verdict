@@ -1,7 +1,8 @@
 # Verdict: Proof-Carrying Claim-Investigation Agent
 
 > **Track 1: Agents That Act on Connected Data**  
-> *Built with FalkorDB 6.0.1 for the Graph Hacks Hackathon*
+> *Built with FalkorDB 6.0.1 for the Graph Hacks Hackathon*  
+> 🔗 **Live Vercel Demo:** [verdict-engine.vercel.app](https://verdict-engine.vercel.app)
 
 Verdict is an autonomous, proof-carrying claim-investigation agent that verifies factual claims by constructing an evidence knowledge graph in **FalkorDB**, computing source authority with native **PageRank**, and evaluating verdicts (`SUPPORTED`, `REFUTED`, or `UNVERIFIED`) exclusively via Cypher graph queries.
 
@@ -233,7 +234,21 @@ python demo.py "Barack Obama was born in Kenya"
 python demo.py "Tesla unveiled the Cybercab robotaxi in October 2024"
 ```
 
-### 5. Run the Web Application (YC Aesthetic)
+### 5. Live Vercel Frontend & Local Web Server
+
+#### Live Vercel Frontend Showcase
+A static frontend showcase of Verdict's web interface is configured for Vercel:
+🔗 **Live Deployment:** [verdict-engine.vercel.app](https://verdict-engine.vercel.app) *(or deploy via `Sourabh-Kumar04/Verdict`)*
+
+> **Deployment Architecture Note:**  
+> Verdict's load-bearing graph database requires **FalkorDB 6.0.1** running in Docker, which cannot run in Vercel serverless environments. The Vercel deployment operates in **Demo Mode**: it provides full interactive epistemic proof dossier visualizations for 3 pre-computed benchmark claims:
+> - **The Eiffel Tower was completed in 1889** (`SUPPORTED`)
+> - **Apollo 11 landed on Mars in 1969** (`REFUTED`)
+> - **Barack Obama was born in Kenya** (`REFUTED`)
+>
+> To run live investigations on arbitrary claims with dynamic graph construction and live news retrieval, run Verdict locally with Docker as shown below.
+
+#### Run the Local Full-Stack Web Application (FastAPI + FalkorDB)
 
 Start the FastAPI web server:
 
