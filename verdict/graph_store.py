@@ -181,7 +181,8 @@ class GraphStore:
         ON CREATE SET e.text = $text,
                       e.stance = $stance,
                       e.weight = $weight,
-                      e.snippet = $snippet
+                      e.snippet = $snippet,
+                      e.published_date = $published_date
         WITH c, s, e
         MERGE (e)-[:EXTRACTED_FROM]->(s)
         WITH c, e
@@ -195,7 +196,8 @@ class GraphStore:
             "text": item.text,
             "stance": stance,
             "weight": float(item.weight),
-            "snippet": item.snippet or ""
+            "snippet": item.snippet or "",
+            "published_date": getattr(item, "published_date", "") or ""
         })
 
     def get_counts(self) -> Dict[str, int]:

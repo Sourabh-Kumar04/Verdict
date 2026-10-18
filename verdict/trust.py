@@ -33,23 +33,25 @@ class TrustEngine:
             return {}
 
         scores: Dict[str, float] = {}
+        # Normalization factor: maps baseline (1/N) to 0.5 so source authority is invariant to total source count
+        scale = max(2, source_count) * 0.5
 
         try:
             # Native FalkorDB 6.0.1 PageRank algorithm procedure
             res = g.query("CALL algo.pageRank('Source', 'CITES') YIELD node, score RETURN node.url, score")
             for row in res.result_set:
                 url = row[0]
-                score = float(row[1])
-                scores[url] = round(score, 4)
+                norm_score = round(float(row[1]) * scale, 4)
+                scores[url] = norm_score
 
                 # Persist computed trust back into the node properties in FalkorDB
                 g.query(
                     "MATCH (s:Source {url: $url}) SET s.pagerank = $score",
-                    {"url": url, "score": score}
+                    {"url": url, "score": norm_score}
                 )
         except Exception as e:
-            # Fallback in case of sparse or procedure error: assign equal baseline distribution
-            baseline = round(1.0 / max(1, source_count), 4)
+            # Fallback in case of sparse or procedure error: assign equal baseline distribution (0.5)
+            baseline = 0.5
             res = g.query("MATCH (s:Source) RETURN s.url")
             for row in res.result_set:
                 url = row[0]

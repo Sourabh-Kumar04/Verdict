@@ -26,10 +26,12 @@ If evidence is insufficient, contradictory, or absent, Verdict **honestly abstai
                                            |
                                            v
                        +---------------------------------------+
-                       |      Evidence Retriever (Public)      |
-                       |    - Wikipedia REST / Action APIs     |
-                       |    - Wikidata Structured Entities     |
-                       |    - Citation Link Discovery          |
+                       |     Two-Tier Evidence Pipeline        |
+                       |  PRIMARY: Wikipedia / Wikidata APIs   |
+                       |  SECONDARY: Live Web/News Retriever   |
+                       |    - SerpApi Google News (if key set) |
+                       |    - Google News RSS (zero-config)    |
+                       |    - Publication Date Recency Decay   |
                        +-------------------+-------------------+
                                            |
                                            v
@@ -38,11 +40,11 @@ If evidence is insufficient, contradictory, or absent, Verdict **honestly abstai
       ||   (:Claim {id, text, is_root})                                           ||
       ||        ^                                                                 ||
       ||        |-- [:SUPPORTS | :REFUTES | :QUALIFIES {weight}]                  ||
-      ||   (:Evidence {id, text, snippet})                                        ||
+      ||   (:Evidence {id, text, snippet, published_date})                        ||
       ||        |                                                                 ||
       ||        |-- [:EXTRACTED_FROM]                                             ||
       ||        v                                                                 ||
-      ||   (:Source {url, name, pagerank})                                        ||
+      ||   (:Source {url, name, source_type, pagerank})                           ||
       ||        |                                                                 ||
       ||        +==== [:CITES] ====> (:Source)  [Citation Network]                ||
       ||                                                                          ||
@@ -152,7 +154,7 @@ pip install -r requirements.txt
 
 ### 3. Run the Test Suite
 
-Execute the full 18-test suite (including CRUD, PageRank, mocked APIs, anti-decoration, and live E2E):
+Execute the full 25-test suite (including CRUD, PageRank, mocked APIs, anti-decoration, live E2E, SerpApi/RSS news retrievers, recency weighting, and gap fallback):
 
 ```bash
 pytest -v
@@ -160,14 +162,20 @@ pytest -v
 
 ### 4. Run the CLI Demo
 
-Run an investigation on any factual claim:
+Run an investigation on historical or breaking/recent claims:
 
 ```bash
-# True claim (Verified SUPPORTED)
+# Historical claim (Verified SUPPORTED via Primary Wikipedia/Wikidata)
 python demo.py "The Eiffel Tower was completed in 1889"
 
-# False claim (Verified REFUTED)
+# False historical claim (Verified REFUTED via Primary Wikipedia)
 python demo.py "Apollo 11 landed on Mars in 1969"
+
+# Breaking / Recent news claim (Verified SUPPORTED via Secondary Live News & Recency Weighting)
+python demo.py "Replit makes OpenAI its default over Anthropic"
+
+# Recent event claim (Verified SUPPORTED via Live News Evidence Graph)
+python demo.py "Tesla unveiled the Cybercab robotaxi in October 2024"
 
 # Unknown/unprovable claim (Verified ABSTAIN / UNVERIFIED)
 python demo.py "The Loch Ness monster was photographed by Isaac Newton in 1675"
@@ -175,13 +183,34 @@ python demo.py "The Loch Ness monster was photographed by Isaac Newton in 1675"
 
 ---
 
+## Two-Tier Evidence Pipeline & Recency Weighting
+
+Verdict employs a two-tier evidence architecture:
+1. **PRIMARY (Wikipedia & Wikidata)**:
+   - Evaluated first for established factual and historical grounding.
+   - Provides structured entity data and peer-reviewed citation networks.
+2. **SECONDARY (Live Web/News)**:
+   - Invoked automatically when Wikipedia has gaps (zero evidence, low-weight mentions, or purely qualifying stance) or when claims target recent/breaking events (>= 2024).
+   - **SerpApi Google News**: Automatically utilized if `SERPAPI_API_KEY` is configured in the environment.
+   - **Google News RSS**: Zero-config, free public news feed utilized when no API key is set or as reliable fallback.
+   - **FalkorDB Evidence Nodes**: Web news evidence nodes store `published_date`, `snippet`, and `source_url`.
+   - **Recency Decay Weighting**: Stance edge weights are weighted by publication recency:
+     - $\le 7$ days: $1.05\times$ (breaking news boost)
+     - $\le 30$ days: $1.00\times$ (fresh event)
+     - $\le 90$ days: $0.90\times$ (recent quarter)
+     - $\le 365$ days: $0.80\times$ (past year)
+     - $> 365$ days: $0.65\times$ (older news)
+   - **Citation PageRank**: Web news items link to publisher domains via `[:CITES]` edges, allowing native FalkorDB PageRank to compute relative authority across wire services and media outlets.
+
+---
+
 ## Honest Limitations
 
 1. **Public API Rate Limits & Latency**:
-   - Retrieval relies on public Wikipedia and Wikidata APIs. Highly complex claims requiring dozens of sub-claim expansions must be metered to respect public server politeness limits.
+   - Retrieval relies on public Wikipedia, Wikidata, and news RSS APIs. Highly complex claims requiring dozens of sub-claim expansions must be metered to respect public server politeness limits.
 2. **Linguistic Stance Heuristics**:
-   - The stance evaluator uses lexical-semantic overlap and entity-predicate contradiction matching (e.g. celestial body substitution, date mismatch). Highly nuanced rhetorical claims (e.g. counterfactual statements or allegories) may require fine-grained NLI models.
+   - The stance evaluator uses lexical-semantic overlap, entity matching, and entity-predicate contradiction matching (e.g. celestial body substitution, date mismatch). Highly nuanced rhetorical claims (e.g. counterfactual statements or allegories) may benefit from fine-grained NLI models.
 3. **Citation Density**:
-   - PageRank relies on citation links between sources. If the retrieved evidence set spans only 1 or 2 isolated pages without cross-links, PageRank gracefully falls back to uniform baseline distribution.
+   - PageRank relies on citation links between sources. If the retrieved evidence set spans only isolated pages without cross-links, PageRank assigns equal baseline distribution (0.50).
 4. **Knowledge Scope**:
-   - Only public knowledge present in Wikipedia and Wikidata is accessible. Private, paywalled, or non-indexed recent news events will be reported as `UNVERIFIED` (honest abstention).
+   - Verdict verifies claims against public knowledge in Wikipedia, Wikidata, and live web/news search. Private internal data or paywalled subscriber content not exposed via search snippets will be reported as `UNVERIFIED` (honest abstention).

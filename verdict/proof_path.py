@@ -21,18 +21,22 @@ class ProofStep:
     source_url: str
     source_pagerank: float
     rank_score: float
+    published_date: str = ""
+    snippet: str = ""
 
     def to_line(self) -> str:
         symbol = "✓" if self.stance == "SUPPORTS" else ("✗" if self.stance == "REFUTES" else "~")
+        pub = f" [published: {self.published_date}]" if self.published_date else ""
         return (
             f"[{symbol} {self.stance}] (score={self.rank_score:.2f}, trust={self.source_pagerank:.2f}) "
-            f'"{self.evidence_text}" — Source: {self.source_name} ({self.source_url})'
+            f'"{self.evidence_text}" — Source: {self.source_name} ({self.source_url}){pub}'
         )
 
     def to_one_line_summary(self) -> str:
+        pub = f" ({self.published_date})" if self.published_date else ""
         return (
             f"[{self.stance} rank={self.rank_score:.2f}] '{self.evidence_text[:65]}...' "
-            f"via {self.source_name} (PageRank: {self.source_pagerank:.2f})"
+            f"via {self.source_name}{pub} (PageRank: {self.source_pagerank:.2f})"
         )
 
 
@@ -67,7 +71,9 @@ class ProofPathEngine:
                s.name AS source_name,
                s.url AS source_url,
                coalesce(s.pagerank, 0.5) AS pagerank,
-               (coalesce(s.pagerank, 0.5) * r.weight) AS rank_score
+               (coalesce(s.pagerank, 0.5) * r.weight) AS rank_score,
+               coalesce(e.published_date, '') AS published_date,
+               coalesce(e.snippet, '') AS snippet
         ORDER BY rank_score DESC
         LIMIT $limit
         """
@@ -75,7 +81,7 @@ class ProofPathEngine:
             res = g.query(q, {"claim_id": root_claim_id, "limit": limit})
             steps: List[ProofStep] = []
             for row in res.result_set:
-                cid, ctext, eid, etext, stance, weight, sname, surl, pr, rscore = row
+                cid, ctext, eid, etext, stance, weight, sname, surl, pr, rscore, pub_date, snip = row
                 steps.append(ProofStep(
                     claim_id=str(cid),
                     claim_text=str(ctext),
@@ -86,7 +92,9 @@ class ProofPathEngine:
                     source_name=str(sname),
                     source_url=str(surl),
                     source_pagerank=float(pr),
-                    rank_score=round(float(rscore), 4)
+                    rank_score=round(float(rscore), 4),
+                    published_date=str(pub_date or ""),
+                    snippet=str(snip or "")
                 ))
             return steps
         except Exception:

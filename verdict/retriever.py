@@ -20,11 +20,12 @@ class EvidenceItem:
     text: str
     source_name: str
     source_url: str
-    source_type: str  # "wikipedia" | "wikidata"
+    source_type: str  # "wikipedia" | "wikidata" | "news"
     stance: str       # "SUPPORTS" | "REFUTES" | "QUALIFIES"
     weight: float     # 0.0 to 1.0
     snippet: str = ""
     target_attribute: Optional[str] = None
+    published_date: Optional[str] = None
 
 
 @dataclass
@@ -34,10 +35,16 @@ class CitationLink:
     relationship: str = "CITES"
 
 
+from verdict.news_retriever import LiveNewsRetriever
+
+
 class EvidenceRetriever:
     """
-    Retrieves evidence strictly from public Wikipedia and Wikidata APIs.
-    Adheres to Wikipedia User-Agent policy and rate limits.
+    Evidence Retriever: Fetches public evidence from Wikipedia/Wikidata (PRIMARY)
+    and live web/news APIs (SECONDARY).
+    Wikipedia/Wikidata serves as the primary encyclopedic knowledge base.
+    The secondary live news source is seamlessly queried when Wikipedia has gaps
+    or when verifying recent events where static encyclopedias lag.
     """
 
     USER_AGENT = "VerdictAgent/1.0 (Hackathon Track 1; connected-data-agent; contact@example.com)"
@@ -45,10 +52,22 @@ class EvidenceRetriever:
     WIKI_REST_API = "https://en.wikipedia.org/api/rest_v1/page/summary"
     WIKIDATA_API = "https://www.wikidata.org/w/api.php"
 
-    def __init__(self, session: Optional[requests.Session] = None, timeout: float = 6.0):
+    def __init__(
+        self,
+        session: Optional[requests.Session] = None,
+        timeout: float = 6.0,
+        serpapi_key: Optional[str] = None,
+        news_mode: str = "on_gap"
+    ):
         self.session = session or requests.Session()
         self.session.headers.update({"User-Agent": self.USER_AGENT})
         self.timeout = timeout
+        self.news_mode = news_mode  # "on_gap" | "always" | "disabled"
+        self.news_retriever = LiveNewsRetriever(
+            session=self.session,
+            timeout=self.timeout,
+            serpapi_key=serpapi_key
+        )
 
     def retrieve_evidence_for_subclaim(
         self,
@@ -131,6 +150,34 @@ class EvidenceRetriever:
                         relationship="CITES"
                     ))
 
+        # 3. SECONDARY: Live Web/News Evidence
+        # Triggered when Wikipedia/Wikidata has gaps, or when claim refers to recent events.
+        if self.news_mode != "disabled":
+            should_fetch_news = False
+            if self.news_mode == "always":
+                should_fetch_news = True
+            else:
+                has_zero_evidence = (len(evidence_list) == 0)
+                has_only_weak = (max((e.weight for e in evidence_list), default=0.0) < 0.50)
+                has_no_definitive_stance = all(e.stance == "QUALIFIES" for e in evidence_list)
+                has_recency_cue = self._has_recency_cue(subclaim)
+
+                should_fetch_news = (
+                    has_zero_evidence
+                    or has_only_weak
+                    or has_no_definitive_stance
+                    or has_recency_cue
+                )
+
+            if should_fetch_news:
+                news_items, news_citations = self.news_retriever.retrieve_news_for_subclaim(
+                    subclaim=subclaim,
+                    top_k=top_k,
+                    start_idx=ev_idx
+                )
+                evidence_list.extend(news_items)
+                citations.extend(news_citations)
+
         # Deduplicate citations
         unique_citations = []
         seen = set()
@@ -140,7 +187,21 @@ class EvidenceRetriever:
                 seen.add(key)
                 unique_citations.append(c)
 
-        return evidence_list[:top_k * 2], unique_citations
+        return evidence_list[:top_k * 3], unique_citations
+
+    def _has_recency_cue(self, subclaim: SubClaim) -> bool:
+        """Checks if subclaim references recent years, breaking events, or temporal phrases."""
+        text = subclaim.text.lower()
+        time_expr = (subclaim.time_expression or "").lower()
+        recent_years = {"2024", "2025", "2026", "2027"}
+        if any(yr in time_expr or yr in text for yr in recent_years):
+            return True
+        recency_words = {
+            "recent", "recently", "latest", "breaking", "unveiled", "announced",
+            "this week", "this month", "this year", "yesterday", "today", "newly",
+            "robotaxi", "cybercab", "starship", "flight 5", "flight 6"
+        }
+        return any(w in text for w in recency_words)
 
     def _build_search_query(self, subclaim: SubClaim) -> str:
         """Constructs an effective search query from subclaim entities and keywords."""

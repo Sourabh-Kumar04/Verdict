@@ -26,11 +26,13 @@ class VerdictAgent:
         self,
         host: str = "localhost",
         port: int = 6379,
-        graph_name: str = "verdict_investigation"
+        graph_name: str = "verdict_investigation",
+        serpapi_key: Optional[str] = None,
+        news_mode: str = "on_gap"
     ):
         self.graph_store = GraphStore(host=host, port=port, graph_name=graph_name)
         self.decomposer = ClaimDecomposer()
-        self.retriever = EvidenceRetriever()
+        self.retriever = EvidenceRetriever(serpapi_key=serpapi_key, news_mode=news_mode)
         self.trust_engine = TrustEngine(self.graph_store)
         self.verdict_engine = VerdictEngine(self.graph_store)
         self.proof_path_engine = ProofPathEngine(self.graph_store)

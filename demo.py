@@ -33,7 +33,7 @@ def main():
     for sc in subclaims:
         print(f"  -> Sub-claim: {sc.text} (Entities: {sc.entities})")
 
-    print("\n[2/5] Retrieving evidence from Wikipedia & Wikidata APIs...")
+    print("\n[2/5] Retrieving evidence from Wikipedia/Wikidata (Primary) & Live Web/News (Secondary)...")
     print("[3/5] Populating FalkorDB evidence graph & computing PageRank trust...")
     result = agent.investigate(claim)
 
