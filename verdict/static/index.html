@@ -63,10 +63,6 @@
     .font-mono {
       font-family: 'JetBrains Mono', monospace;
     }
-    .dot-grid {
-      background-image: radial-gradient(#e4e4e7 1px, transparent 1px);
-      background-size: 16px 16px;
-    }
     html {
       scroll-behavior: smooth;
     }
@@ -74,35 +70,35 @@
 </head>
 <body class="bg-white text-zinc-900 antialiased flex flex-col min-h-screen selection:bg-yc-light selection:text-yc-orange">
 
-  <!-- Top Navigation Header -->
-  <header class="sticky top-0 z-50 flex items-center justify-between w-full px-6 h-14 bg-white/95 backdrop-blur-sm border-b border-surface-border">
-    <div class="flex items-center gap-6">
+  <!-- Top Navigation Header: Clean, open, 1px hairline border -->
+  <header class="sticky top-0 z-50 flex items-center justify-between w-full px-8 sm:px-12 h-16 bg-white/95 backdrop-blur-sm border-b border-zinc-100">
+    <div class="flex items-center gap-8">
       <!-- Verdict Wordmark -->
       <a class="flex items-center gap-2 group" href="/">
-        <span class="w-4 h-4 bg-yc-orange rounded-sm flex items-center justify-center text-white shadow-xs">
+        <span class="w-4 h-4 bg-yc-orange rounded-xs flex items-center justify-center text-white">
           <span class="w-1.5 h-1.5 bg-white rounded-xs"></span>
         </span>
         <span class="text-lg font-bold tracking-tight text-zinc-900">Verdict</span>
       </a>
 
-      <!-- Subtitle badge -->
-      <div class="hidden sm:flex items-center gap-2 pl-3 border-l border-surface-border">
-        <span class="font-mono text-[11px] uppercase tracking-wider text-zinc-500 px-2 py-0.5 rounded bg-surface-subtle border border-surface-border">
+      <!-- Subtitle typographic tag: open, no border/box -->
+      <div class="hidden sm:flex items-center gap-2 pl-4 border-l border-zinc-200">
+        <span class="font-mono text-[11px] uppercase tracking-widest text-zinc-400">
           Proof-Carrying Claim Verification
         </span>
       </div>
 
       <!-- Nav Links -->
-      <nav class="hidden md:flex items-center space-x-6 ml-2 font-mono text-xs">
-        <a class="text-zinc-500 hover:text-zinc-900 transition-colors" href="#pipeline">Pipeline</a>
-        <a class="text-zinc-500 hover:text-zinc-900 transition-colors" href="#dossier">Proof Path</a>
-        <a class="text-zinc-500 hover:text-zinc-900 transition-colors" href="#graph">FalkorDB</a>
+      <nav class="hidden md:flex items-center space-x-8 ml-2 font-mono text-xs">
+        <a class="text-zinc-400 hover:text-zinc-900 transition-colors" href="#pipeline">Pipeline</a>
+        <a class="text-zinc-400 hover:text-zinc-900 transition-colors" href="#dossier">Proof Path</a>
+        <a class="text-zinc-400 hover:text-zinc-900 transition-colors" href="#graph">FalkorDB</a>
       </nav>
     </div>
 
-    <!-- Right Header Telemetry & Status -->
-    <div class="flex items-center gap-4">
-      <div id="falkordbStatus" class="flex items-center gap-2 px-2.5 py-1 rounded bg-surface-subtle border border-surface-border font-mono text-xs text-zinc-600">
+    <!-- Right Header Telemetry & Status: open inline indicator, no card box -->
+    <div class="flex items-center gap-6">
+      <div id="falkordbStatus" class="flex items-center gap-2 font-mono text-xs text-zinc-500">
         <span class="relative flex h-2 w-2">
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
           <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -110,23 +106,23 @@
         <span id="falkordbStatusText">FalkorDB v6.0.1 Active</span>
       </div>
 
-      <a href="https://github.com/sourabh-kumar04/graph-hacks-verdict" target="_blank" rel="noopener" class="flex items-center gap-1 font-mono text-xs text-zinc-600 hover:text-zinc-900 transition-colors px-2 py-1 rounded hover:bg-surface-subtle">
+      <a href="https://github.com/sourabh-kumar04/graph-hacks-verdict" target="_blank" rel="noopener" class="flex items-center gap-1 font-mono text-xs text-zinc-400 hover:text-zinc-900 transition-colors">
         <span>GitHub</span>
         <span class="material-symbols-outlined text-[13px]">open_in_new</span>
       </a>
     </div>
   </header>
 
-  <!-- Error / Connection Alert Banner -->
-  <div id="alertBanner" class="hidden max-w-5xl mx-auto w-full px-6 pt-4">
-    <div class="p-4 rounded-md border border-epistemic-redBorder bg-epistemic-redBg text-epistemic-redText text-sm flex items-start gap-3 shadow-xs">
-      <span class="material-symbols-outlined text-lg shrink-0 mt-0.5">error</span>
+  <!-- Error / Connection Alert Banner: Open hairline notice -->
+  <div id="alertBanner" class="hidden max-w-5xl mx-auto w-full px-8 sm:px-12 pt-6">
+    <div class="p-4 border-l-4 border-l-red-500 border-y border-r border-red-100 bg-red-50/50 text-red-900 text-sm flex items-start gap-4">
+      <span class="material-symbols-outlined text-lg shrink-0 mt-0.5 text-red-600">error</span>
       <div class="flex-grow">
-        <strong id="alertTitle" class="font-semibold block">Error</strong>
-        <p id="alertMessage" class="mt-0.5 text-xs font-mono"></p>
-        <div id="alertDockerCmd" class="mt-2 text-xs font-mono bg-white p-2 rounded border border-epistemic-redBorder select-all"></div>
+        <strong id="alertTitle" class="font-semibold block text-red-900">Error</strong>
+        <p id="alertMessage" class="mt-1 text-xs font-mono text-red-800 leading-relaxed"></p>
+        <div id="alertDockerCmd" class="mt-3 text-xs font-mono bg-white p-2.5 border border-red-200 select-all"></div>
       </div>
-      <button onclick="dismissAlert()" class="text-epistemic-redText hover:opacity-80">
+      <button onclick="dismissAlert()" class="text-red-600 hover:opacity-80">
         <span class="material-symbols-outlined text-base">close</span>
       </button>
     </div>
@@ -135,35 +131,35 @@
   <!-- Main Content -->
   <main class="flex-grow flex flex-col">
 
-    <!-- Hero / Landing Section -->
-    <section id="heroSection" class="border-b border-surface-border dot-grid pt-10 pb-12 px-6 relative transition-all duration-300">
+    <!-- Hero / Landing Section: Generous 2x whitespace, zero boxes -->
+    <section id="heroSection" class="border-b border-zinc-100 pt-20 pb-24 sm:pt-28 sm:pb-32 px-8 sm:px-12 relative transition-all duration-300">
       <div class="max-w-4xl mx-auto flex flex-col items-center text-center">
         
-        <!-- YC Category Tag -->
-        <div id="heroBadge" class="inline-flex items-center gap-2 px-3 py-1 rounded border border-surface-border bg-white shadow-xs mb-5">
-          <span class="w-2 h-2 bg-yc-orange rounded-xs"></span>
-          <span class="font-mono text-xs uppercase tracking-wider text-zinc-600">Deterministic Epistemic Graph Agent</span>
+        <!-- YC Category Tag: Open typographic kicker, no card/box -->
+        <div id="heroBadge" class="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-zinc-400 mb-6">
+          <span class="w-1.5 h-1.5 bg-yc-orange"></span>
+          <span>Deterministic Epistemic Graph Agent</span>
         </div>
 
-        <!-- Headline Pitch -->
-        <h1 id="heroHeadline" class="text-3xl sm:text-5xl font-bold text-zinc-900 tracking-tight mb-3">
+        <!-- Headline Pitch: Large, airy type -->
+        <h1 id="heroHeadline" class="text-4xl sm:text-6xl font-bold text-zinc-900 tracking-tight mb-6 leading-tight">
           Ask if a claim is true. <br class="hidden sm:inline"/>Get a proven answer.
         </h1>
 
-        <!-- One-line subpitch -->
-        <p id="heroSubpitch" class="text-base sm:text-lg text-zinc-600 max-w-2xl mb-7 leading-relaxed">
+        <!-- Subpitch: Generous breathing space -->
+        <p id="heroSubpitch" class="text-lg sm:text-xl text-zinc-500 max-w-2xl mb-12 leading-relaxed font-light">
           Verdict compiles claims into atomic subclaims, constructs load-bearing evidence graphs in FalkorDB, and executes formal Cypher proof traversals.
         </p>
 
-        <!-- Claim Input Box -->
-        <div class="w-full max-w-2xl bg-white border border-surface-border rounded-lg p-2 shadow-xs hover:border-zinc-400 focus-within:border-zinc-800 transition-all">
-          <form id="investigateForm" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <div class="flex items-center flex-grow px-3 py-2 gap-3 text-zinc-500">
-              <span class="material-symbols-outlined text-[20px]">search</span>
+        <!-- Claim Input: Open, minimalist underline input with zero card box -->
+        <div class="w-full max-w-2xl">
+          <form id="investigateForm" class="flex flex-col sm:flex-row items-center border-b-2 border-zinc-200 focus-within:border-zinc-900 pb-3 transition-colors gap-4">
+            <div class="flex items-center flex-grow w-full gap-3 text-zinc-400">
+              <span class="material-symbols-outlined text-[22px]">search</span>
               <input
                 id="claimInput"
                 type="text"
-                class="w-full bg-transparent border-0 p-0 text-sm sm:text-base text-zinc-900 placeholder:text-zinc-400 focus:ring-0 focus:outline-hidden"
+                class="w-full bg-transparent border-0 p-0 text-base sm:text-lg text-zinc-900 placeholder:text-zinc-300 focus:ring-0 focus:outline-hidden"
                 placeholder="Enter any factual claim to investigate..."
                 value="The Eiffel Tower was completed in 1889"
                 autocomplete="off"
@@ -173,7 +169,7 @@
             <button
               id="investigateBtn"
               type="submit"
-              class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-yc-orange hover:bg-yc-hover text-white font-medium text-sm rounded transition-all active:scale-95 shadow-xs whitespace-nowrap cursor-pointer"
+              class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-yc-orange hover:bg-yc-hover text-white font-medium text-sm rounded transition-all active:scale-95 shadow-none whitespace-nowrap cursor-pointer shrink-0"
             >
               <span id="btnText">Investigate Claim</span>
               <span class="material-symbols-outlined text-base">arrow_forward</span>
@@ -181,12 +177,12 @@
           </form>
         </div>
 
-        <!-- Example Chips -->
-        <div id="exampleChips" class="flex flex-wrap items-center justify-center gap-2 mt-4 font-mono text-xs">
-          <span class="text-zinc-500 mr-1">Examples:</span>
+        <!-- Example Chips: Open text links with no boxed cards -->
+        <div id="exampleChips" class="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 mt-8 font-mono text-xs">
+          <span class="text-zinc-400">Examples:</span>
           <button
             type="button"
-            class="example-pill px-2.5 py-1 rounded border border-surface-border bg-white text-zinc-700 hover:border-yc-orange hover:text-yc-orange transition-colors flex items-center gap-1.5 cursor-pointer"
+            class="example-pill text-zinc-600 hover:text-yc-orange transition-colors flex items-center gap-1.5 cursor-pointer underline underline-offset-4 decoration-zinc-200 hover:decoration-yc-orange py-1"
             onclick="setClaim('The Eiffel Tower was completed in 1889')"
           >
             <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
@@ -194,7 +190,7 @@
           </button>
           <button
             type="button"
-            class="example-pill px-2.5 py-1 rounded border border-surface-border bg-white text-zinc-700 hover:border-yc-orange hover:text-yc-orange transition-colors flex items-center gap-1.5 cursor-pointer"
+            class="example-pill text-zinc-600 hover:text-yc-orange transition-colors flex items-center gap-1.5 cursor-pointer underline underline-offset-4 decoration-zinc-200 hover:decoration-yc-orange py-1"
             onclick="setClaim('Apollo 11 landed on Mars')"
           >
             <span class="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
@@ -202,7 +198,7 @@
           </button>
           <button
             type="button"
-            class="example-pill px-2.5 py-1 rounded border border-surface-border bg-white text-zinc-700 hover:border-yc-orange hover:text-yc-orange transition-colors flex items-center gap-1.5 cursor-pointer"
+            class="example-pill text-zinc-600 hover:text-yc-orange transition-colors flex items-center gap-1.5 cursor-pointer underline underline-offset-4 decoration-zinc-200 hover:decoration-yc-orange py-1"
             onclick="setClaim('Barack Obama was born in Kenya')"
           >
             <span class="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
@@ -213,215 +209,219 @@
       </div>
     </section>
 
-    <!-- 5-Stage Pipeline Stepper Section -->
-    <section id="pipeline" class="border-b border-surface-border bg-surface-subtle py-3 px-6 scroll-mt-14">
-      <div class="max-w-6xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-3">
+    <!-- 5-Stage Pipeline Stepper: Open white background, spacious typography -->
+    <section id="pipeline" class="border-b border-zinc-100 bg-white py-6 px-8 sm:px-12 scroll-mt-16">
+      <div class="max-w-6xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-6">
         
         <!-- Stepper Indicator -->
-        <div class="flex items-center flex-wrap gap-2 sm:gap-3 font-mono text-xs">
+        <div class="flex items-center flex-wrap gap-4 sm:gap-6 font-mono text-xs">
           
           <!-- Stage 1 -->
-          <div id="step-1" class="step-badge flex items-center gap-1.5 text-zinc-400">
-            <span class="step-icon w-4 h-4 rounded-full bg-zinc-200 text-zinc-600 flex items-center justify-center text-[10px]">1</span>
-            <span class="step-label font-medium">[1] Decomposing Claim</span>
+          <div id="step-1" class="step-badge flex items-center gap-2 text-zinc-300">
+            <span class="step-icon flex items-center justify-center text-[11px] font-mono">[1]</span>
+            <span class="step-label font-medium">Decomposing Claim</span>
           </div>
-          <span class="text-zinc-300">/</span>
+          <span class="text-zinc-200">/</span>
 
           <!-- Stage 2 -->
-          <div id="step-2" class="step-badge flex items-center gap-1.5 text-zinc-400">
-            <span class="step-icon w-4 h-4 rounded-full bg-zinc-200 text-zinc-600 flex items-center justify-center text-[10px]">2</span>
-            <span class="step-label font-medium">[2] Retrieving Evidence</span>
+          <div id="step-2" class="step-badge flex items-center gap-2 text-zinc-300">
+            <span class="step-icon flex items-center justify-center text-[11px] font-mono">[2]</span>
+            <span class="step-label font-medium">Retrieving Evidence</span>
           </div>
-          <span class="text-zinc-300">/</span>
+          <span class="text-zinc-200">/</span>
 
           <!-- Stage 3 -->
-          <div id="step-3" class="step-badge flex items-center gap-1.5 text-zinc-400">
-            <span class="step-icon w-4 h-4 rounded-full bg-zinc-200 text-zinc-600 flex items-center justify-center text-[10px]">3</span>
-            <span class="step-label font-medium">[3] Building FalkorDB Graph</span>
+          <div id="step-3" class="step-badge flex items-center gap-2 text-zinc-300">
+            <span class="step-icon flex items-center justify-center text-[11px] font-mono">[3]</span>
+            <span class="step-label font-medium">Building FalkorDB Graph</span>
           </div>
-          <span class="text-zinc-300">/</span>
+          <span class="text-zinc-200">/</span>
 
           <!-- Stage 4 -->
-          <div id="step-4" class="step-badge flex items-center gap-1.5 text-zinc-400">
-            <span class="step-icon w-4 h-4 rounded-full bg-zinc-200 text-zinc-600 flex items-center justify-center text-[10px]">4</span>
-            <span class="step-label font-medium">[4] Computing Verdict</span>
+          <div id="step-4" class="step-badge flex items-center gap-2 text-zinc-300">
+            <span class="step-icon flex items-center justify-center text-[11px] font-mono">[4]</span>
+            <span class="step-label font-medium">Computing Verdict</span>
           </div>
-          <span class="text-zinc-300">/</span>
+          <span class="text-zinc-200">/</span>
 
           <!-- Stage 5 -->
-          <div id="step-5" class="step-badge flex items-center gap-1.5 text-zinc-400">
-            <span class="step-icon w-4 h-4 rounded-full bg-zinc-200 text-zinc-600 flex items-center justify-center text-[10px]">5</span>
-            <span class="step-label font-medium">[5] Proof Path Extraction</span>
+          <div id="step-5" class="step-badge flex items-center gap-2 text-zinc-300">
+            <span class="step-icon flex items-center justify-center text-[11px] font-mono">[5]</span>
+            <span class="step-label font-medium">Proof Path Extraction</span>
           </div>
 
         </div>
 
-        <!-- Live Status Pill -->
-        <div id="pipelineStatus" class="flex items-center gap-3 font-mono text-xs text-zinc-500 shrink-0">
-          <span class="flex items-center gap-1">
+        <!-- Live Status Pill: Open minimal text -->
+        <div id="pipelineStatus" class="flex items-center gap-4 font-mono text-xs text-zinc-400 shrink-0">
+          <span class="flex items-center gap-1.5">
             <span class="material-symbols-outlined text-sm">hub</span>
             <span id="pipelineDetail">Ready for investigation</span>
           </span>
-          <span>·</span>
+          <span class="text-zinc-200">·</span>
           <span class="text-emerald-600 font-medium">100% Deterministic</span>
         </div>
 
       </div>
     </section>
 
-    <!-- Investigation Epistemic Dossier View -->
-    <section id="dossier" class="max-w-6xl mx-auto w-full px-6 py-6 flex-grow scroll-mt-14">
+    <!-- Investigation Epistemic Dossier View: Generous whitespace, zero boxes -->
+    <section id="dossier" class="max-w-6xl mx-auto w-full px-8 sm:px-12 py-16 sm:py-20 flex-grow scroll-mt-16">
       
-      <!-- Dossier Header -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-6 border-b border-surface-border gap-4">
+      <!-- Dossier Header: Clean typographic divider -->
+      <div class="flex flex-col sm:flex-row sm:items-baseline justify-between pb-8 mb-12 border-b border-zinc-100 gap-6">
         <div>
-          <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900">Investigation Epistemic Dossier</h2>
-          <p class="text-xs sm:text-sm text-zinc-600">Deterministic proof trail compiled from FalkorDB knowledge graph traversals.</p>
+          <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900">Investigation Epistemic Dossier</h2>
+          <p class="text-sm text-zinc-500 mt-1 font-normal">Deterministic proof trail compiled from FalkorDB knowledge graph traversals.</p>
         </div>
 
-        <!-- Simulated Stance Switcher from Stitch Design -->
-        <div class="flex items-center gap-2 bg-surface-subtle p-1 rounded border border-surface-border font-mono text-xs">
-          <span class="text-zinc-500 px-1">Simulate:</span>
-          <button id="toggleSupported" type="button" onclick="simulateState('SUPPORTED')" class="px-2 py-0.5 rounded font-medium bg-white text-emerald-700 shadow-xs border border-surface-border cursor-pointer">
+        <!-- Simulated Stance Switcher: Open typographic tabs with no box -->
+        <div class="flex items-center gap-6 font-mono text-xs">
+          <span class="text-zinc-400">Simulate:</span>
+          <button id="toggleSupported" type="button" onclick="simulateState('SUPPORTED')" class="cursor-pointer text-emerald-600 font-bold border-b-2 border-emerald-600 pb-1 transition-colors">
             SUPPORTED
           </button>
-          <button id="toggleRefuted" type="button" onclick="simulateState('REFUTED')" class="px-2 py-0.5 rounded font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer">
+          <button id="toggleRefuted" type="button" onclick="simulateState('REFUTED')" class="cursor-pointer text-zinc-400 hover:text-zinc-900 pb-1 transition-colors">
             REFUTED
           </button>
-          <button id="toggleUnverified" type="button" onclick="simulateState('UNVERIFIED')" class="px-2 py-0.5 rounded font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer">
+          <button id="toggleUnverified" type="button" onclick="simulateState('UNVERIFIED')" class="cursor-pointer text-zinc-400 hover:text-zinc-900 pb-1 transition-colors">
             UNVERIFIED
           </button>
         </div>
       </div>
 
-      <!-- Main Two-Column Layout -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <!-- Main Two-Column Layout: Generous gap-12 to gap-16 -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
         
         <!-- Left Column: Verdict Summary & Graph Telemetry (5 cols) -->
-        <div class="lg:col-span-5 flex flex-col gap-5">
+        <div class="lg:col-span-5 flex flex-col gap-10">
           
-          <!-- Primary Verdict Outcome Card -->
-          <div class="bg-white border border-surface-border rounded-lg p-5 shadow-xs relative overflow-hidden">
-            <div class="flex items-start justify-between mb-3">
-              <div>
-                <span class="font-mono text-[11px] uppercase tracking-wider text-zinc-500 block mb-1">Formal Engine Verdict</span>
-                <div id="verdictBadge" class="inline-flex items-center gap-2 px-3 py-1.5 rounded border font-mono text-sm font-bold bg-epistemic-greenBg border-epistemic-greenBorder text-epistemic-greenText">
-                  <span id="verdictBadgeIcon" class="material-symbols-outlined text-[18px]">verified</span>
-                  <span id="verdictBadgeText">SUPPORTED</span>
-                </div>
-              </div>
-
-              <!-- Confidence Metric -->
-              <div class="text-right">
-                <span class="font-mono text-[11px] uppercase tracking-wider text-zinc-500 block mb-1">Confidence Score</span>
-                <div id="confidenceVal" class="text-2xl font-mono font-bold text-zinc-900">47.5%</div>
-                <span id="certaintyText" class="font-mono text-[11px] text-emerald-600 font-medium block">High Epistemic Certainty</span>
+          <!-- Primary Verdict Outcome: Pure open typographic layout, zero boxes -->
+          <div class="space-y-6 pb-10 border-b border-zinc-100">
+            <div>
+              <span class="font-mono text-[11px] uppercase tracking-widest text-zinc-400 block mb-2">Formal Engine Verdict</span>
+              <div id="verdictBadge" class="inline-flex items-center gap-2 font-mono text-xl font-bold text-emerald-600">
+                <span id="verdictBadgeIcon" class="material-symbols-outlined text-[24px]">verified</span>
+                <span id="verdictBadgeText">SUPPORTED</span>
               </div>
             </div>
 
-            <!-- Claim Monospace Echo -->
-            <div class="bg-surface-subtle p-2.5 rounded border border-surface-border text-xs mb-3 flex items-start gap-2">
-              <span class="material-symbols-outlined text-base text-yc-orange shrink-0 mt-0.5">format_quote</span>
-              <p id="claimEcho" class="font-normal text-zinc-800 italic">"The Eiffel Tower was completed in 1889"</p>
+            <!-- Confidence Metric -->
+            <div class="pt-2">
+              <div class="flex items-baseline justify-between mb-2">
+                <span class="font-mono text-[11px] uppercase tracking-widest text-zinc-400 block">Confidence Score</span>
+                <span id="certaintyText" class="font-mono text-xs text-emerald-600 font-medium">High Epistemic Certainty</span>
+              </div>
+              <div id="confidenceVal" class="text-4xl sm:text-5xl font-light font-mono text-zinc-900 tracking-tight mb-3">47.5%</div>
+              
+              <!-- Minimal hairline progress indicator -->
+              <div class="w-full bg-zinc-100 h-1 overflow-hidden mb-2">
+                <div id="confidenceBar" class="bg-emerald-500 h-1 transition-all duration-500" style="width: 47.5%"></div>
+              </div>
+              <div class="flex justify-between font-mono text-[11px] text-zinc-400">
+                <span>Proof Threshold: 85.0%</span>
+                <span id="pScoreValue">Strict Cypher Evaluation</span>
+              </div>
             </div>
 
-            <!-- Reason Paragraph -->
-            <div id="reasonBox" class="text-xs text-zinc-600 mb-3 bg-zinc-50 p-2.5 rounded border border-zinc-200">
-              Supported: All claim components verified by authoritative evidence graph sources.
+            <!-- Claim Monospace Echo: Open flowing quote with hairline left accent -->
+            <div class="py-2 pl-4 border-l-2 border-yc-orange">
+              <p class="font-mono text-[11px] uppercase tracking-wider text-zinc-400 mb-1">Evaluated Claim</p>
+              <p id="claimEcho" class="text-base text-zinc-800 leading-relaxed italic">"The Eiffel Tower was completed in 1889"</p>
             </div>
 
-            <!-- Confidence Progress Bar -->
-            <div class="w-full bg-zinc-200 rounded-full h-1.5 mb-2 overflow-hidden">
-              <div id="confidenceBar" class="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style="width: 47.5%"></div>
-            </div>
-            <div class="flex justify-between font-mono text-[11px] text-zinc-500">
-              <span>Proof Threshold: 85.0%</span>
-              <span id="pScoreValue">Strict Cypher Evaluation</span>
+            <!-- Reason Paragraph: Flowing prose with zero box -->
+            <div class="pt-2">
+              <p class="font-mono text-[11px] uppercase tracking-wider text-zinc-400 mb-1">Epistemic Rationale</p>
+              <p id="reasonBox" class="text-sm text-zinc-600 leading-relaxed">
+                Supported: All claim components verified by authoritative evidence graph sources.
+              </p>
             </div>
           </div>
 
-          <!-- FalkorDB Subgraph Metrics -->
-          <div id="graph" class="bg-white border border-surface-border rounded-lg p-5 shadow-xs">
-            <div class="flex items-center justify-between pb-2.5 mb-3.5 border-b border-surface-border">
+          <!-- FalkorDB Subgraph Metrics: Open inline stats row, no boxes -->
+          <div id="graph" class="space-y-6 pb-10 border-b border-zinc-100">
+            <div class="flex items-baseline justify-between">
               <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-lg text-yc-orange">account_tree</span>
-                <h3 class="font-semibold text-sm text-zinc-900">FalkorDB Subgraph Metrics</h3>
+                <span class="w-2 h-2 rounded-full bg-yc-orange"></span>
+                <h3 class="font-mono text-xs uppercase tracking-wider text-zinc-900 font-semibold">FalkorDB Subgraph Metrics</h3>
               </div>
-              <span class="font-mono text-[11px] text-zinc-500">falkordb-verdict</span>
+              <span class="font-mono text-[11px] text-zinc-400">falkordb-verdict</span>
             </div>
 
-            <div class="grid grid-cols-2 gap-2.5 mb-3.5">
-              <div class="p-2.5 bg-surface-subtle rounded border border-surface-border">
-                <span class="font-mono text-[11px] text-zinc-500 block">Total Nodes</span>
-                <span id="statTotalNodes" class="text-lg font-bold font-mono text-zinc-900">11</span>
+            <!-- Open inline stats row -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-6 py-2">
+              <div>
+                <span id="statTotalNodes" class="text-3xl font-light font-mono text-zinc-900 block leading-none mb-1">11</span>
+                <span class="font-mono text-[11px] text-zinc-400 uppercase tracking-wider">Total Nodes</span>
               </div>
-              <div class="p-2.5 bg-surface-subtle rounded border border-surface-border">
-                <span class="font-mono text-[11px] text-zinc-500 block">Relationships</span>
-                <span id="statTotalEdges" class="text-lg font-bold font-mono text-zinc-900">10</span>
+              <div>
+                <span id="statTotalEdges" class="text-3xl font-light font-mono text-zinc-900 block leading-none mb-1">10</span>
+                <span class="font-mono text-[11px] text-zinc-400 uppercase tracking-wider">Relationships</span>
               </div>
-              <div class="p-2.5 bg-surface-subtle rounded border border-surface-border">
-                <span class="font-mono text-[11px] text-zinc-500 block">Authoritative Sources</span>
-                <span id="statSources" class="text-lg font-bold font-mono text-zinc-900">6</span>
+              <div>
+                <span id="statSources" class="text-3xl font-light font-mono text-zinc-900 block leading-none mb-1">6</span>
+                <span class="font-mono text-[11px] text-zinc-400 uppercase tracking-wider">Sources</span>
               </div>
-              <div class="p-2.5 bg-surface-subtle rounded border border-surface-border">
-                <span class="font-mono text-[11px] text-zinc-500 block">Evidence Items</span>
-                <span id="statEvidence" class="text-lg font-bold font-mono text-zinc-900">3</span>
+              <div>
+                <span id="statEvidence" class="text-3xl font-light font-mono text-zinc-900 block leading-none mb-1">3</span>
+                <span class="font-mono text-[11px] text-zinc-400 uppercase tracking-wider">Evidence Items</span>
               </div>
             </div>
 
-            <!-- Active Cypher Query Preview -->
-            <div>
-              <div class="flex items-center justify-between font-mono text-[11px] text-zinc-500 mb-1.5">
-                <span class="font-medium">Active Cypher Traversal</span>
+            <!-- Active Cypher Query Preview: Minimal open monospace view -->
+            <div class="pt-2">
+              <div class="flex items-center justify-between font-mono text-[11px] text-zinc-400 mb-2">
+                <span class="uppercase tracking-wider">Active Cypher Traversal</span>
                 <button
                   type="button"
-                  class="hover:text-zinc-900 flex items-center gap-1 cursor-pointer"
+                  class="hover:text-zinc-900 flex items-center gap-1 cursor-pointer transition-colors"
                   onclick="copyCypherQuery()"
                 >
                   <span class="material-symbols-outlined text-[13px]">content_copy</span>
                   <span>Copy</span>
                 </button>
               </div>
-              <pre id="cypherQueryBlock" class="bg-zinc-900 text-zinc-200 p-2.5 rounded font-mono text-[11px] overflow-x-auto leading-relaxed">MATCH (c:Claim {id: $id})-[r:SUPPORTS|REFUTES]->(e:Evidence)
+              <pre id="cypherQueryBlock" class="text-zinc-700 font-mono text-xs leading-relaxed overflow-x-auto py-2 pl-3 border-l border-zinc-200">MATCH (c:Claim {id: $id})-[r:SUPPORTS|REFUTES]->(e:Evidence)
 RETURN c.text, e.text, type(r), e.weight
 ORDER BY e.weight DESC</pre>
             </div>
           </div>
 
-          <!-- PageRank Source Trust Top Scores -->
-          <div class="bg-white border border-surface-border rounded-lg p-5 shadow-xs">
-            <div class="flex items-center justify-between pb-2 mb-2.5 border-b border-surface-border">
+          <!-- PageRank Source Trust: Open list with hairline dividers, no boxes -->
+          <div class="space-y-4">
+            <div class="flex items-baseline justify-between">
               <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-base text-zinc-700">insights</span>
-                <h3 class="font-semibold text-xs text-zinc-900">PageRank Source Trust</h3>
+                <span class="w-2 h-2 rounded-full bg-zinc-400"></span>
+                <h3 class="font-mono text-xs uppercase tracking-wider text-zinc-900 font-semibold">PageRank Source Trust</h3>
               </div>
-              <span class="font-mono text-[10px] text-zinc-500">Citation Graph</span>
+              <span class="font-mono text-[11px] text-zinc-400">Citation Graph</span>
             </div>
-            <div id="trustScoresList" class="flex flex-col gap-1.5 font-mono text-[11px]">
-              <!-- Populated dynamically -->
+            <div id="trustScoresList" class="divide-y divide-zinc-100 font-mono text-xs">
+              <!-- Populated dynamically: open rows with no boxed borders/bg -->
             </div>
           </div>
 
         </div>
 
         <!-- Right Column: Ranked Proof Path Chain (7 cols) -->
-        <div class="lg:col-span-7 flex flex-col gap-3.5">
-          <div class="flex items-center justify-between pb-2 border-b border-surface-border">
+        <div class="lg:col-span-7 flex flex-col gap-6">
+          <div class="flex items-baseline justify-between pb-4 border-b border-zinc-100">
             <div class="flex items-center gap-2">
-              <span class="material-symbols-outlined text-lg text-yc-orange">linear_scale</span>
-              <h3 class="font-bold text-sm text-zinc-900">Ranked Epistemic Proof Path</h3>
+              <span class="w-2 h-2 rounded-full bg-yc-orange"></span>
+              <h3 class="font-mono text-xs uppercase tracking-wider text-zinc-900 font-semibold">Ranked Epistemic Proof Path</h3>
             </div>
-            <span id="proofPathCountBadge" class="font-mono text-xs text-zinc-500">Top Verified Evidence</span>
+            <span id="proofPathCountBadge" class="font-mono text-xs text-zinc-400">Top Verified Evidence</span>
           </div>
 
-          <!-- One-line summary banner -->
-          <div id="oneLineProofBox" class="p-3 bg-surface-subtle border-l-4 border-l-yc-orange rounded-r-md border-y border-r border-surface-border font-mono text-xs text-zinc-800">
+          <!-- One-line summary banner: Open typographic row -->
+          <div id="oneLineProofBox" class="py-3 font-mono text-xs text-zinc-700 border-b border-zinc-100 leading-relaxed">
             [SUPPORTS rank=0.26] 'Eiffel Tower | History, Height, & Facts' via News: Britannica (PageRank: 0.35)
           </div>
 
-          <!-- Proof Chain Cards Container -->
-          <div id="proofChainContainer" class="flex flex-col gap-3.5">
-            <!-- Cards rendered dynamically -->
+          <!-- Proof Chain Rows Container: Open rows with numbers, hairline separators, no borders -->
+          <div id="proofChainContainer" class="divide-y divide-zinc-100">
+            <!-- Rows rendered dynamically -->
           </div>
 
         </div>
@@ -432,20 +432,20 @@ ORDER BY e.weight DESC</pre>
 
   </main>
 
-  <!-- Minimal YC-Style Footer -->
-  <footer class="w-full py-5 px-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-surface-border bg-white mt-auto">
-    <div class="flex items-center gap-3">
+  <!-- Minimal YC-Style Footer: Open, airy spacing -->
+  <footer class="w-full py-10 px-8 sm:px-12 flex flex-col sm:flex-row items-center justify-between gap-6 border-t border-zinc-100 bg-white mt-auto">
+    <div class="flex items-center gap-4">
       <div class="flex items-center gap-2">
         <span class="w-3.5 h-3.5 bg-yc-orange rounded-xs flex items-center justify-center text-white text-[9px] font-bold">V</span>
         <span class="font-bold text-xs tracking-tight text-zinc-900">Verdict</span>
       </div>
-      <span class="text-zinc-300">·</span>
-      <p class="font-mono text-xs text-zinc-500">
-        Load-Bearing Epistemic Graph Reasoning powered by <strong class="text-zinc-800">FalkorDB 6.0.1</strong>.
+      <span class="text-zinc-200">·</span>
+      <p class="font-mono text-xs text-zinc-400">
+        Load-Bearing Epistemic Graph Reasoning powered by <strong class="text-zinc-700 font-medium">FalkorDB 6.0.1</strong>.
       </p>
     </div>
 
-    <div class="flex items-center gap-6 font-mono text-xs text-zinc-500">
+    <div class="flex items-center gap-8 font-mono text-xs text-zinc-400">
       <a class="hover:text-zinc-900 transition-colors" href="https://github.com/sourabh-kumar04/graph-hacks-verdict" target="_blank" rel="noopener">GitHub</a>
       <a class="hover:text-zinc-900 transition-colors" href="/docs" target="_blank">Docs</a>
       <a class="hover:text-zinc-900 transition-colors" href="/api/health" target="_blank">API Health</a>
@@ -627,7 +627,7 @@ ORDER BY e.weight DESC</pre>
         if (headline) headline.style.display = 'none';
         if (subpitch) subpitch.style.display = 'none';
         const hero = document.getElementById('heroSection');
-        if (hero) hero.className = 'border-b border-surface-border dot-grid py-3 px-6 relative';
+        if (hero) hero.className = 'border-b border-zinc-100 py-6 px-8 sm:px-12 relative';
 
         completeAllPipelineSteps();
         document.getElementById('pipelineDetail').textContent = 'Verified in 412ms · 100% Deterministic';
@@ -653,7 +653,7 @@ ORDER BY e.weight DESC</pre>
           const data = await res.json();
           if (data.falkordb_connected) {
             document.getElementById('falkordbStatusText').textContent = 'FalkorDB v6.0.1 Active';
-            document.getElementById('falkordbStatus').className = 'flex items-center gap-2 px-2.5 py-1 rounded bg-surface-subtle border border-surface-border font-mono text-xs text-zinc-600';
+            document.getElementById('falkordbStatus').className = 'flex items-center gap-2 font-mono text-xs text-zinc-500';
           } else {
             showFalkorDBDown(data.error, data.falkordb_docker_command);
           }
@@ -665,7 +665,7 @@ ORDER BY e.weight DESC</pre>
 
     function showFalkorDBDown(errDetail, dockerCmd) {
       document.getElementById('falkordbStatusText').textContent = 'FalkorDB Offline';
-      document.getElementById('falkordbStatus').className = 'flex items-center gap-2 px-2.5 py-1 rounded bg-epistemic-redBg border border-epistemic-redBorder font-mono text-xs text-epistemic-redText';
+      document.getElementById('falkordbStatus').className = 'flex items-center gap-2 font-mono text-xs text-red-600';
       
       showAlert(
         'FalkorDB Connection Offline',
@@ -696,23 +696,23 @@ ORDER BY e.weight DESC</pre>
     }
 
     function simulateState(state) {
-      document.getElementById('toggleSupported').className = 'px-2 py-0.5 rounded font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer';
-      document.getElementById('toggleRefuted').className = 'px-2 py-0.5 rounded font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer';
-      document.getElementById('toggleUnverified').className = 'px-2 py-0.5 rounded font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer';
+      document.getElementById('toggleSupported').className = 'cursor-pointer text-zinc-400 hover:text-zinc-900 pb-1 font-mono text-xs transition-colors';
+      document.getElementById('toggleRefuted').className = 'cursor-pointer text-zinc-400 hover:text-zinc-900 pb-1 font-mono text-xs transition-colors';
+      document.getElementById('toggleUnverified').className = 'cursor-pointer text-zinc-400 hover:text-zinc-900 pb-1 font-mono text-xs transition-colors';
 
       if (state === 'SUPPORTED') {
-        document.getElementById('toggleSupported').className = 'px-2 py-0.5 rounded font-medium bg-white text-emerald-700 shadow-xs border border-surface-border cursor-pointer';
+        document.getElementById('toggleSupported').className = 'cursor-pointer text-emerald-600 font-bold border-b-2 border-emerald-600 pb-1 font-mono text-xs transition-colors';
         renderVerdictResult(PRESETS.SUPPORTED);
       } else if (state === 'REFUTED') {
-        document.getElementById('toggleRefuted').className = 'px-2 py-0.5 rounded font-medium bg-white text-red-700 shadow-xs border border-surface-border cursor-pointer';
+        document.getElementById('toggleRefuted').className = 'cursor-pointer text-red-600 font-bold border-b-2 border-red-600 pb-1 font-mono text-xs transition-colors';
         renderVerdictResult(PRESETS.REFUTED);
       } else if (state === 'UNVERIFIED') {
-        document.getElementById('toggleUnverified').className = 'px-2 py-0.5 rounded font-medium bg-white text-amber-700 shadow-xs border border-surface-border cursor-pointer';
+        document.getElementById('toggleUnverified').className = 'cursor-pointer text-amber-600 font-bold border-b-2 border-amber-600 pb-1 font-mono text-xs transition-colors';
         renderVerdictResult(PRESETS.UNVERIFIED);
       }
     }
 
-    // Pipeline Stage Stepper Control
+    // Pipeline Stage Stepper Control: Open typographic state indicators
     function setStepState(stepNum, status) {
       const step = document.getElementById(`step-${stepNum}`);
       if (!step) return;
@@ -720,17 +720,17 @@ ORDER BY e.weight DESC</pre>
       const label = step.querySelector('.step-label');
 
       if (status === 'active') {
-        step.className = 'step-badge flex items-center gap-1.5 text-yc-orange bg-yc-light px-2 py-0.5 rounded border border-yc-border';
-        icon.className = 'step-icon w-4 h-4 rounded-full bg-yc-orange text-white flex items-center justify-center text-[10px] animate-pulse';
-        icon.innerHTML = `<span class="material-symbols-outlined text-[10px]">sync</span>`;
+        step.className = 'step-badge flex items-center gap-2 text-yc-orange font-semibold';
+        icon.className = 'step-icon flex items-center justify-center text-[12px] animate-spin text-yc-orange';
+        icon.innerHTML = `<span class="material-symbols-outlined text-[14px]">progress_activity</span>`;
       } else if (status === 'complete') {
-        step.className = 'step-badge flex items-center gap-1.5 text-emerald-600';
-        icon.className = 'step-icon w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px]';
-        icon.innerHTML = `<span class="material-symbols-outlined text-[12px]">check</span>`;
+        step.className = 'step-badge flex items-center gap-2 text-emerald-600 font-medium';
+        icon.className = 'step-icon flex items-center justify-center text-[12px] text-emerald-600';
+        icon.innerHTML = `<span class="material-symbols-outlined text-[14px]">check</span>`;
       } else if (status === 'pending') {
-        step.className = 'step-badge flex items-center gap-1.5 text-zinc-400';
-        icon.className = 'step-icon w-4 h-4 rounded-full bg-zinc-200 text-zinc-600 flex items-center justify-center text-[10px]';
-        icon.innerHTML = `${stepNum}`;
+        step.className = 'step-badge flex items-center gap-2 text-zinc-300';
+        icon.className = 'step-icon flex items-center justify-center text-[11px] font-mono text-zinc-400';
+        icon.innerHTML = `[${stepNum}]`;
       }
     }
 
@@ -863,7 +863,7 @@ ORDER BY e.weight DESC</pre>
       btnText.textContent = 'Investigate Claim';
     }
 
-    // Render the final verdict result payload
+    // Render the final verdict result payload: Pure open typography, no cards/boxes
     function renderVerdictResult(data) {
       if (!data) return;
 
@@ -875,7 +875,7 @@ ORDER BY e.weight DESC</pre>
       document.getElementById('claimEcho').textContent = `"${data.claim || ''}"`;
       document.getElementById('reasonBox').textContent = data.reason || '';
 
-      // Update Verdict Badge & Styling
+      // Update Verdict Badge & Styling: Open typography, no box borders/backgrounds
       const verdictBadge = document.getElementById('verdictBadge');
       const badgeIcon = document.getElementById('verdictBadgeIcon');
       const badgeText = document.getElementById('verdictBadgeText');
@@ -887,29 +887,29 @@ ORDER BY e.weight DESC</pre>
       confBar.style.width = `${Math.min(100, Math.max(5, confidence * 100))}%`;
 
       if (verdict === 'SUPPORTED') {
-        verdictBadge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded border font-mono text-sm font-bold bg-epistemic-greenBg border-epistemic-greenBorder text-epistemic-greenText';
+        verdictBadge.className = 'inline-flex items-center gap-2 font-mono text-xl font-bold text-emerald-600';
         badgeIcon.textContent = 'verified';
         badgeText.textContent = 'SUPPORTED';
-        confBar.className = 'bg-emerald-500 h-1.5 rounded-full transition-all duration-500';
-        certText.className = 'font-mono text-[11px] text-emerald-600 font-medium block';
+        confBar.className = 'bg-emerald-500 h-1 transition-all duration-500';
+        certText.className = 'font-mono text-xs text-emerald-600 font-medium block';
         certText.textContent = 'High Epistemic Certainty';
       } else if (verdict === 'REFUTED') {
-        verdictBadge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded border font-mono text-sm font-bold bg-epistemic-redBg border-epistemic-redBorder text-epistemic-redText';
+        verdictBadge.className = 'inline-flex items-center gap-2 font-mono text-xl font-bold text-red-600';
         badgeIcon.textContent = 'cancel';
         badgeText.textContent = 'REFUTED';
-        confBar.className = 'bg-red-500 h-1.5 rounded-full transition-all duration-500';
-        certText.className = 'font-mono text-[11px] text-red-600 font-medium block';
+        confBar.className = 'bg-red-500 h-1 transition-all duration-500';
+        certText.className = 'font-mono text-xs text-red-600 font-medium block';
         certText.textContent = 'Conclusive Disproof Proven';
       } else {
-        verdictBadge.className = 'inline-flex items-center gap-2 px-3 py-1.5 rounded border font-mono text-sm font-bold bg-epistemic-amberBg border-epistemic-amberBorder text-epistemic-amberText';
+        verdictBadge.className = 'inline-flex items-center gap-2 font-mono text-xl font-bold text-amber-600';
         badgeIcon.textContent = 'help';
         badgeText.textContent = 'UNVERIFIED';
-        confBar.className = 'bg-amber-500 h-1.5 rounded-full transition-all duration-500';
-        certText.className = 'font-mono text-[11px] text-amber-600 font-medium block';
+        confBar.className = 'bg-amber-500 h-1 transition-all duration-500';
+        certText.className = 'font-mono text-xs text-amber-600 font-medium block';
         certText.textContent = 'Insufficient Graph Evidence';
       }
 
-      // Update Graph Stats
+      // Update Graph Stats: Open inline values
       const counts = data.graph_counts || {};
       document.getElementById('statTotalNodes').textContent = counts.total_nodes || 0;
       document.getElementById('statTotalEdges').textContent = counts.total_edges || 0;
@@ -923,32 +923,32 @@ ORDER BY e.weight DESC</pre>
 RETURN c.text, e.text, type(r), e.weight
 ORDER BY e.weight DESC`;
 
-      // Update PageRank Trust Scores List
+      // Update PageRank Trust Scores List: Open rows with hairline dividers
       const trustContainer = document.getElementById('trustScoresList');
       trustContainer.innerHTML = '';
       const trustScores = data.trust_scores || {};
       const scoreEntries = Object.entries(trustScores).slice(0, 4);
 
       if (scoreEntries.length === 0) {
-        trustContainer.innerHTML = '<span class="text-zinc-400 italic">No citation edges in current graph</span>';
+        trustContainer.innerHTML = '<div class="py-3 text-zinc-400 italic">No citation edges in current graph</div>';
       } else {
         scoreEntries.forEach(([url, score]) => {
           let host = url;
           try { host = new URL(url).hostname; } catch(e) {}
           const item = document.createElement('div');
-          item.className = 'flex items-center justify-between p-2 rounded bg-surface-subtle border border-surface-border';
+          item.className = 'flex items-center justify-between py-2.5';
           item.innerHTML = `
-            <span class="truncate max-w-[210px] text-zinc-700" title="${escapeHtml(url)}">${escapeHtml(host)}</span>
-            <span class="font-bold text-zinc-900">${score.toFixed(4)}</span>
+            <span class="truncate max-w-[240px] text-zinc-600" title="${escapeHtml(url)}">${escapeHtml(host)}</span>
+            <span class="font-mono font-medium text-zinc-900">${score.toFixed(4)}</span>
           `;
           trustContainer.appendChild(item);
         });
       }
 
-      // Update One-Line Proof Summary
+      // Update One-Line Proof Summary: Open typographic text
       document.getElementById('oneLineProofBox').textContent = data.one_line_proof || 'No proof summary available.';
 
-      // Update Proof Steps Cards
+      // Update Proof Steps Rows: Open rows with numbers, hairline separators, NO borders
       const proofContainer = document.getElementById('proofChainContainer');
       proofContainer.innerHTML = '';
 
@@ -957,8 +957,8 @@ ORDER BY e.weight DESC`;
 
       if (steps.length === 0) {
         proofContainer.innerHTML = `
-          <div class="bg-white border border-surface-border rounded-lg p-8 text-center text-zinc-500 font-mono text-xs">
-            <span class="material-symbols-outlined text-3xl text-zinc-400 mb-2">find_in_page</span>
+          <div class="py-12 text-center text-zinc-400 font-mono text-xs">
+            <span class="material-symbols-outlined text-3xl text-zinc-300 mb-2">find_in_page</span>
             <p>No corroborating evidence paths found in graph (Abstained / Unverified).</p>
           </div>
         `;
@@ -969,48 +969,48 @@ ORDER BY e.weight DESC`;
         const stepNum = String(idx + 1).padStart(2, '0');
         const stance = step.stance || 'UNVERIFIED';
 
-        let stanceBadgeClass = 'bg-zinc-100 text-zinc-700 border-zinc-200';
+        let stanceColorClass = 'text-zinc-500';
         let stanceSymbol = '~';
         if (stance === 'SUPPORTS') {
-          stanceBadgeClass = 'bg-epistemic-greenBg text-epistemic-greenText border-epistemic-greenBorder';
+          stanceColorClass = 'text-emerald-600';
           stanceSymbol = '✓';
         } else if (stance === 'REFUTES') {
-          stanceBadgeClass = 'bg-epistemic-redBg text-epistemic-redText border-epistemic-redBorder';
+          stanceColorClass = 'text-red-600';
           stanceSymbol = '✗';
         }
 
         const card = document.createElement('div');
-        card.className = 'bg-white border border-surface-border rounded-lg p-4 shadow-xs hover:border-zinc-400 transition-all';
+        card.className = 'py-7 space-y-3.5';
         card.innerHTML = `
-          <div class="flex items-center justify-between mb-2.5 font-mono text-xs">
-            <div class="flex items-center gap-2">
-              <span class="px-1.5 py-0.5 rounded bg-surface-subtle text-zinc-600 font-medium">[STEP ${stepNum}]</span>
-              <span class="px-2 py-0.5 rounded border text-[11px] font-bold ${stanceBadgeClass}">
+          <div class="flex items-center justify-between font-mono text-xs">
+            <div class="flex items-center gap-3">
+              <span class="text-zinc-400 font-bold">${stepNum}</span>
+              <span class="font-bold ${stanceColorClass}">
                 ${stanceSymbol} ${escapeHtml(stance)}
               </span>
             </div>
-            <div class="flex items-center gap-3 text-zinc-500 text-[11px]">
-              <span>Rank Score: <strong class="text-zinc-900">${(step.rank_score || 0).toFixed(2)}</strong></span>
+            <div class="flex items-center gap-3 text-zinc-400 text-[11px]">
+              <span>Rank Score: <strong class="text-zinc-800 font-medium">${(step.rank_score || 0).toFixed(2)}</strong></span>
               <span>·</span>
-              <span>Trust: <strong class="text-zinc-900">${(step.source_pagerank || 0).toFixed(2)}</strong></span>
+              <span>Trust: <strong class="text-zinc-800 font-medium">${(step.source_pagerank || 0).toFixed(2)}</strong></span>
             </div>
           </div>
 
-          <h4 class="font-semibold text-xs sm:text-sm text-zinc-900 mb-1.5 leading-snug">
+          <h4 class="text-sm sm:text-base font-semibold text-zinc-900 leading-snug">
             ${escapeHtml(step.evidence_text || 'Evidence Node')}
           </h4>
 
-          <div class="bg-surface-subtle p-2.5 rounded border border-surface-border mb-2.5 text-xs text-zinc-700 italic border-l-2 border-l-yc-orange">
+          <div class="pl-3 border-l-2 border-zinc-200 py-0.5 text-xs sm:text-sm text-zinc-600 italic leading-relaxed">
             "${escapeHtml(step.snippet || step.evidence_text || '')}"
           </div>
 
-          <div class="flex items-center justify-between font-mono text-[11px] text-zinc-500 pt-2 border-t border-surface-border">
-            <span class="flex items-center gap-1.5 truncate max-w-[280px]">
-              <span class="material-symbols-outlined text-[13px] text-zinc-600">verified_user</span>
+          <div class="flex items-center justify-between font-mono text-[11px] text-zinc-400 pt-1">
+            <span class="flex items-center gap-1.5 truncate max-w-[320px]">
+              <span class="material-symbols-outlined text-[13px] text-zinc-400">verified_user</span>
               <span>${escapeHtml(step.source_name || 'Authoritative Source')}</span>
             </span>
             ${step.source_url ? `
-              <a class="text-yc-orange hover:text-yc-hover hover:underline flex items-center gap-0.5 shrink-0" href="${escapeHtml(step.source_url)}" target="_blank" rel="noopener">
+              <a class="text-yc-orange hover:text-yc-hover hover:underline flex items-center gap-1 shrink-0" href="${escapeHtml(step.source_url)}" target="_blank" rel="noopener">
                 <span>Inspect Source</span>
                 <span class="material-symbols-outlined text-[12px]">open_in_new</span>
               </a>
