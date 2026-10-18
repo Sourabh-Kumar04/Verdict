@@ -18,6 +18,7 @@ import xml.etree.ElementTree as ET
 import requests
 
 from verdict.claim_decomposer import SubClaim
+from verdict.semantic_verifier import detect_nationality_contradiction
 
 if TYPE_CHECKING:
     from verdict.retriever import EvidenceItem, CitationLink
@@ -487,6 +488,13 @@ class LiveNewsRetriever:
         has_us_in_ev = any(loc in ev_lower for loc in us_locs)
         if has_kenya_in_claim and has_us_in_ev and any(w in ev_lower or w in claim_text for w in ("born", "birth", "citizen", "president", "american")):
             return "REFUTES", 0.95
+
+        # Check nationality / country of origin contradiction
+        if detect_nationality_contradiction(claim_text, ev_lower):
+            if subclaim.entities and any(ent.lower() in ev_lower for ent in subclaim.entities):
+                return "REFUTES", 0.95
+            elif any(w in ev_lower for w in ("company", "organization", "firm", "born", "birth", "president", "citizen", "headquarters", "founded")):
+                return "REFUTES", 0.95
 
         # Investigative question headlines (e.g. "Did X happen?", "Is X true?") are claims under review, not affirmative support
         is_question = ("?" in ev_lower) or any(ev_lower.strip().startswith(p) for p in ("did ", "is ", "was ", "can ", "could ", "would ", "has "))

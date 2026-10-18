@@ -74,6 +74,7 @@ class CitationLink:
 
 
 from verdict.news_retriever import LiveNewsRetriever
+from verdict.semantic_verifier import SemanticStanceVerifier, detect_nationality_contradiction
 
 
 class EvidenceRetriever:
@@ -108,12 +109,15 @@ class EvidenceRetriever:
             timeout=self.timeout,
             serpapi_key=serpapi_key
         )
+        self.semantic_verifier = SemanticStanceVerifier(timeout=min(self.timeout, 3.0))
 
     def clear_cache(self) -> None:
         """Clears in-memory caches."""
         clear_retriever_cache()
         if hasattr(self.news_retriever, "clear_cache"):
             self.news_retriever.clear_cache()
+        if hasattr(self.semantic_verifier, "clear_cache"):
+            self.semantic_verifier.clear_cache()
 
     def retrieve_evidence_for_subclaim(
         self,
@@ -284,6 +288,14 @@ class EvidenceRetriever:
                 seen.add(key)
                 unique_citations.append(c)
 
+        # Semantic stance verification layer:
+        # Verify evidence pieces that lexically scored as SUPPORTS via local Ollama LLM
+        self.semantic_verifier.verify_supporting_evidence(
+            subclaim=subclaim,
+            evidence_items=evidence_list,
+            top_n=3
+        )
+
         return evidence_list[:top_k * 4], unique_citations
 
     def _has_fact_check_cue(self, subclaim: SubClaim) -> bool:
@@ -438,13 +450,25 @@ class EvidenceRetriever:
         if has_kenya_in_claim and has_us_in_ev and any(w in ev_lower or w in claim_text for w in ("born", "birth", "president", "citizen")):
             return "REFUTES", 0.95
 
+        # Check nationality / country of origin contradiction
+        # e.g., Claim: OpenAI is an Indian company. Ev: OpenAI: American artificial intelligence research organization.
+        if detect_nationality_contradiction(claim_text, ev_lower):
+            if subclaim.entities and any(ent.lower() in ev_lower for ent in subclaim.entities):
+                return "REFUTES", 0.95
+            elif any(w in ev_lower for w in ("company", "organization", "firm", "born", "birth", "president", "citizen", "headquarters", "founded")):
+                return "REFUTES", 0.95
+
         # Check temporal contradiction if year is specified
         if claim_year and years_in_ev:
             if claim_year in years_in_ev:
                 if overlap_ratio >= 0.4:
                     return "SUPPORTS", min(0.95, 0.6 + overlap_ratio * 0.4)
             else:
-                if overlap_ratio >= 0.5:
+                generic_nouns = {"tower", "company", "organization", "building", "event", "city", "state", "country"}
+                primary_ent = re.sub(r'^(The|A|An)\s+', '', subclaim.entities[0], flags=re.IGNORECASE).strip().lower() if subclaim.entities else ""
+                core_ent_words = [w for w in re.findall(r'\b[a-z0-9_-]+\b', primary_ent) if len(w) > 3 and w not in generic_nouns]
+                has_entity = (not subclaim.entities) or (primary_ent in ev_lower) or any(w in ev_lower for w in core_ent_words)
+                if overlap_ratio >= 0.5 and has_entity:
                     return "REFUTES", 0.85
 
         # Check explicit debunking or negated predicate phrases
