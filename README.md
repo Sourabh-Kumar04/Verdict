@@ -20,24 +20,28 @@ If evidence is insufficient, contradictory, or absent, Verdict **honestly abstai
                                            v
                        +---------------------------------------+
                        |        Claim Decomposer (NLP)         |
+                       |    - Input Sanitization & Safety      |
                        |    - Atomic Sub-claims & Entities     |
                        |    - Temporal & Predicate Extraction  |
                        +-------------------+-------------------+
                                            |
                                            v
                        +---------------------------------------+
-                       |     Two-Tier Evidence Pipeline        |
+                       |      Two-Tier Evidence Pipeline       |
                        |  PRIMARY: Wikipedia / Wikidata APIs   |
-                       |  SECONDARY: Live Web/News Retriever   |
+                       |  SECONDARY: Live News & Fact-Checkers |
                        |    - SerpApi Google News (if key set) |
                        |    - Google News RSS (zero-config)    |
+                       |    - Snopes (site:snopes.com)         |
+                       |    - PolitiFact (site:politifact.com) |
+                       |    - FactCheck.org (site:factcheck.org|
                        |    - Publication Date Recency Decay   |
                        +-------------------+-------------------+
                                            |
                                            v
        ===================== FALKORDB 6.0.1 LOAD-BEARING GRAPH =====================
       ||                                                                          ||
-      ||   (:Claim {id, text, is_root})                                           ||
+      ||   (:Claim {id, text, is_root, verdict, confidence})                      ||
       ||        ^                                                                 ||
       ||        |-- [:SUPPORTS | :REFUTES | :QUALIFIES {weight}]                  ||
       ||   (:Evidence {id, text, snippet, published_date})                        ||
@@ -45,25 +49,27 @@ If evidence is insufficient, contradictory, or absent, Verdict **honestly abstai
       ||        |-- [:EXTRACTED_FROM]                                             ||
       ||        v                                                                 ||
       ||   (:Source {url, name, source_type, pagerank})                           ||
+      ||        |   (source_type: 'wikipedia' | 'wikidata' | 'news' |             ||
+      ||        |                 'fact_checker')                                 ||
       ||        |                                                                 ||
       ||        +==== [:CITES] ====> (:Source)  [Citation Network]                ||
       ||                                                                          ||
       ||   >>> FalkorDB Graph Analytics:                                          ||
       ||       CALL algo.pageRank('Source', 'CITES') YIELD node, score            ||
-      ||       SET s.pagerank = score                                             ||
+      ||       SET s.pagerank = score  [+ Fact-Checker Authority Boost]           ||
       ||                                                                          ||
       ||   >>> Cypher Verdict Query:                                              ||
       ||       MATCH (c:Claim)<-[r:SUPPORTS|REFUTES|QUALIFIES]-(e:Evidence)       ||
       ||       MATCH (e)-[:EXTRACTED_FROM]->(s:Source)                            ||
-      ||       RETURN sum(r.weight * s.pagerank) AS stance_score                  ||
+      ||       RETURN sum(r.weight * s.pagerank) AS weighted_score                ||
       ||                                                                          ||
        =============================================================================
                                            |
                                            v
                        +---------------------------------------+
                        |          Proof Path Engine            |
-                       |    - Ranked Evidence Traversal        |
-                       |    - Audit Trail & Citations          |
+                       |    - Multi-Hop Graph Traversal        |
+                       |    - Ranked Evidence & Citations      |
                        +-------------------+-------------------+
                                            |
                                            v
@@ -116,12 +122,58 @@ In many "graph RAG" prototypes, the graph database is purely decorative: claims 
 
 ---
 
+## Evidence Sources & Two-Tier Architecture
+
+Verdict connects to three distinct categories of public factual data:
+
+### Tier 1: Primary Encyclopedic Grounding
+- **Wikipedia REST API**: Full-text article extracts, lead summaries, and cross-references.
+- **Wikidata SPARQL / Entity API**: Structured knowledge-graph entities, disambiguated labels, instance statements, and formal dates.
+
+### Tier 2: Secondary Live News & Fact-Checkers
+- **Live News Streams**:
+  - **SerpApi Google News**: Automatically used if `SERPAPI_API_KEY` is provided.
+  - **Google News RSS**: Zero-config, free real-time public news feed with zero rate-limit friction.
+- **Dedicated Fact-Checker Sources**:
+  - **Snopes** (`site:snopes.com`)
+  - **PolitiFact** (`site:politifact.com`)
+  - **FactCheck.org** (`site:factcheck.org`)
+  - *Non-Scraping Implementation*: Queried via site-scoped filters over the Google News RSS pipeline, avoiding fragile HTML scraping while guaranteeing fresh editorial debunkings.
+  - *Graph Authority Boost*: Tagged with `source_type="fact_checker"` and granted higher base trust weights ($0.90$ initial PageRank vs $0.50$ baseline), ensuring specialized investigative journalism takes precedence over viral rumors in Cypher aggregations.
+
+### Recency Decay Weighting
+Stance edge weights ($r.weight$) are dynamically scaled based on publication recency:
+- $\le 7$ days: $1.05\times$ (breaking news boost)
+- $\le 30$ days: $1.00\times$ (fresh event)
+- $\le 90$ days: $0.90\times$ (recent quarter)
+- $\le 365$ days: $0.80\times$ (past year)
+- $> 365$ days: $0.65\times$ (older historical news)
+
+---
+
+## Robustness & Judge Hardening
+
+Verdict is hardened against common real-world failure modes:
+
+1. **Unreachable FalkorDB Handling**:
+   - If FalkorDB is offline or disconnected, Verdict catches connection failures at startup and prints a clean, actionable error message explaining how to launch the Docker container.
+   - **No Python stack traces** are presented to the user.
+2. **Empty Evidence Abstention**:
+   - If all public sources return zero evidence for a niche or obscure claim, Verdict cleanly emits an `UNVERIFIED` verdict with zero confidence ($0.00$) and an explicit explanation (`Abstained: Insufficient public evidence retrieved to corroborate or refute claim`).
+   - The graph remains mathematically consistent without hallucination.
+3. **Input Sanitization**:
+   - Hardened against adversarial, malformed, or weird inputs (null bytes `\x00`, unprintable ASCII control characters, multi-thousand character floods, unicode control sequences, and empty/whitespace strings).
+   - Long strings are safely capped on word boundaries; empty or non-factual inputs immediately trigger clean abstention without hitting the database.
+
+---
+
 ## FalkorDB 6.0.1 Best Practices & Pitfalls Avoided
 
 1. **Vector Wrapping**: Embedding vectors are wrapped using `vecf32([...])` in Cypher queries (`format_vector`). Raw arrays are never passed.
 2. **Flat Properties**: All node and relationship properties are flattened into primitives; nested dictionaries are never passed (`flatten_properties`).
 3. **WITH Clause Chaining**: All multi-statement write/read Cyphers put `WITH` clauses between `CREATE`/`MERGE` and `MATCH`.
 4. **Guarded Empty Deletes**: `graph.delete()` on an empty key throws in FalkorDB 6.0.1 (`Invalid graph operation on empty key`); `delete_graph()` safely catches and guards this exception.
+5. **Cypher Round Function**: FalkorDB 6.0.1 `round()` takes at most 1 argument; floating-point precision formatting is handled in application logic.
 
 ---
 
@@ -152,65 +204,44 @@ pip install -r requirements.txt
 
 *(Or using `uv`: `uv venv && uv pip install -r requirements.txt`)*
 
-### 3. Run the Test Suite
+### 3. Run the Full Test Suite
 
-Execute the full 25-test suite (including CRUD, PageRank, mocked APIs, anti-decoration, live E2E, SerpApi/RSS news retrievers, recency weighting, and gap fallback):
+Execute the full 32-test suite (including CRUD, PageRank, mocked APIs, anti-decoration, live E2E, SerpApi/RSS news retrievers, fact-checkers, recency weighting, input sanitization, and connection error handling):
 
 ```bash
 pytest -v
 ```
 
-### 4. Run the CLI Demo
+### 4. Run the Live CLI Demo
 
-Run an investigation on historical or breaking/recent claims:
+Run an investigation across historical, refuted, unprovable, and fact-checker-debunked claims:
 
 ```bash
-# Historical claim (Verified SUPPORTED via Primary Wikipedia/Wikidata)
+# 1. Historical Fact (Verified SUPPORTED via Primary Wikipedia/Wikidata)
 python demo.py "The Eiffel Tower was completed in 1889"
 
-# False historical claim (Verified REFUTED via Primary Wikipedia)
+# 2. Refuted Historical Claim (Verified REFUTED via Moon Landing Contradiction)
 python demo.py "Apollo 11 landed on Mars in 1969"
 
-# Breaking / Recent news claim (Verified SUPPORTED via Secondary Live News & Recency Weighting)
-python demo.py "Replit makes OpenAI its default over Anthropic"
-
-# Recent event claim (Verified SUPPORTED via Live News Evidence Graph)
-python demo.py "Tesla unveiled the Cybercab robotaxi in October 2024"
-
-# Unknown/unprovable claim (Verified ABSTAIN / UNVERIFIED)
+# 3. Unprovable / Niche Statement (Verified UNVERIFIED with Honest Abstention)
 python demo.py "The Loch Ness monster was photographed by Isaac Newton in 1675"
+
+# 4. Fact-Checker Debunked Claim (Verified REFUTED via Snopes & PolitiFact)
+python demo.py "Barack Obama was born in Kenya"
+
+# 5. Breaking Event Claim (Verified SUPPORTED via Secondary Live News)
+python demo.py "Tesla unveiled the Cybercab robotaxi in October 2024"
 ```
-
----
-
-## Two-Tier Evidence Pipeline & Recency Weighting
-
-Verdict employs a two-tier evidence architecture:
-1. **PRIMARY (Wikipedia & Wikidata)**:
-   - Evaluated first for established factual and historical grounding.
-   - Provides structured entity data and peer-reviewed citation networks.
-2. **SECONDARY (Live Web/News)**:
-   - Invoked automatically when Wikipedia has gaps (zero evidence, low-weight mentions, or purely qualifying stance) or when claims target recent/breaking events (>= 2024).
-   - **SerpApi Google News**: Automatically utilized if `SERPAPI_API_KEY` is configured in the environment.
-   - **Google News RSS**: Zero-config, free public news feed utilized when no API key is set or as reliable fallback.
-   - **FalkorDB Evidence Nodes**: Web news evidence nodes store `published_date`, `snippet`, and `source_url`.
-   - **Recency Decay Weighting**: Stance edge weights are weighted by publication recency:
-     - $\le 7$ days: $1.05\times$ (breaking news boost)
-     - $\le 30$ days: $1.00\times$ (fresh event)
-     - $\le 90$ days: $0.90\times$ (recent quarter)
-     - $\le 365$ days: $0.80\times$ (past year)
-     - $> 365$ days: $0.65\times$ (older news)
-   - **Citation PageRank**: Web news items link to publisher domains via `[:CITES]` edges, allowing native FalkorDB PageRank to compute relative authority across wire services and media outlets.
 
 ---
 
 ## Honest Limitations
 
-1. **Public API Rate Limits & Latency**:
-   - Retrieval relies on public Wikipedia, Wikidata, and news RSS APIs. Highly complex claims requiring dozens of sub-claim expansions must be metered to respect public server politeness limits.
+1. **Public API Rate Limits & Politeness**:
+   - Retrieval relies on public Wikipedia, Wikidata, and Google News RSS endpoints. Claims decomposed into dozens of sub-claims must be metered to respect public server politeness limits.
 2. **Linguistic Stance Heuristics**:
-   - The stance evaluator uses lexical-semantic overlap, entity matching, and entity-predicate contradiction matching (e.g. celestial body substitution, date mismatch). Highly nuanced rhetorical claims (e.g. counterfactual statements or allegories) may benefit from fine-grained NLI models.
-3. **Citation Density**:
-   - PageRank relies on citation links between sources. If the retrieved evidence set spans only isolated pages without cross-links, PageRank assigns equal baseline distribution (0.50).
+   - The stance evaluator combines lexical overlap, entity alignment, publication dates, and explicit contradiction matching (e.g., celestial body substitution, birthplace contradiction, debunking prefixes). Highly nuanced rhetorical assertions (e.g., complex counterfactuals or literary allegories) would benefit from fine-grained natural language inference (NLI) models.
+3. **Citation Network Density**:
+   - PageRank relies on citation links between sources. If the retrieved evidence set spans only isolated pages without cross-links, PageRank assigns equal baseline distribution ($0.50$).
 4. **Knowledge Scope**:
-   - Verdict verifies claims against public knowledge in Wikipedia, Wikidata, and live web/news search. Private internal data or paywalled subscriber content not exposed via search snippets will be reported as `UNVERIFIED` (honest abstention).
+   - Verdict verifies claims against public knowledge in Wikipedia, Wikidata, live web news, and fact-checking archives. Private internal data or paywalled subscriber content not exposed via search snippets will be reported as `UNVERIFIED` (honest abstention).

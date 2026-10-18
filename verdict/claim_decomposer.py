@@ -8,6 +8,8 @@ import re
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+from verdict.sanitizer import sanitize_claim
+
 
 @dataclass
 class SubClaim:
@@ -61,7 +63,7 @@ class ClaimDecomposer:
         """
         Decomposes a factual claim into a list of atomic SubClaim objects.
         """
-        text = claim.strip()
+        text = sanitize_claim(claim)
         if not text:
             return []
 

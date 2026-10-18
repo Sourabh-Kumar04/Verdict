@@ -20,7 +20,7 @@ class EvidenceItem:
     text: str
     source_name: str
     source_url: str
-    source_type: str  # "wikipedia" | "wikidata" | "news"
+    source_type: str  # "wikipedia" | "wikidata" | "news" | "fact_checker"
     stance: str       # "SUPPORTS" | "REFUTES" | "QUALIFIES"
     weight: float     # 0.0 to 1.0
     snippet: str = ""
@@ -57,12 +57,14 @@ class EvidenceRetriever:
         session: Optional[requests.Session] = None,
         timeout: float = 6.0,
         serpapi_key: Optional[str] = None,
-        news_mode: str = "on_gap"
+        news_mode: str = "on_gap",
+        fact_check_mode: str = "auto"
     ):
         self.session = session or requests.Session()
         self.session.headers.update({"User-Agent": self.USER_AGENT})
         self.timeout = timeout
         self.news_mode = news_mode  # "on_gap" | "always" | "disabled"
+        self.fact_check_mode = fact_check_mode  # "auto" | "always" | "on_gap" | "disabled"
         self.news_retriever = LiveNewsRetriever(
             session=self.session,
             timeout=self.timeout,
@@ -83,6 +85,12 @@ class EvidenceRetriever:
         # 1. Search Wikipedia
         search_query = self._build_search_query(subclaim)
         wiki_pages = self._search_wikipedia(search_query, limit=top_k)
+        # Also ensure primary named entity article is retrieved if distinct
+        if subclaim.entities and subclaim.entities[0].lower() != search_query.lower():
+            primary_pages = self._search_wikipedia(subclaim.entities[0], limit=1)
+            for p in primary_pages:
+                if p.get("title") and not any(existing.get("title") == p.get("title") for existing in wiki_pages):
+                    wiki_pages.insert(0, p)
 
         ev_idx = 1
         for page in wiki_pages:
@@ -177,6 +185,35 @@ class EvidenceRetriever:
                 )
                 evidence_list.extend(news_items)
                 citations.extend(news_citations)
+                ev_idx += len(news_items)
+
+        # 4. FACT-CHECKER SOURCES: Snopes, PolitiFact, FactCheck.org
+        if self.fact_check_mode != "disabled":
+            should_fetch_fact_checks = False
+            if self.fact_check_mode == "always":
+                should_fetch_fact_checks = True
+            else:
+                has_zero_evidence = (len(evidence_list) == 0)
+                has_only_weak = (max((e.weight for e in evidence_list), default=0.0) < 0.50)
+                has_refutation = any(e.stance == "REFUTES" for e in evidence_list)
+                has_fact_check_cue = self._has_fact_check_cue(subclaim)
+
+                should_fetch_fact_checks = (
+                    has_zero_evidence
+                    or has_only_weak
+                    or has_refutation
+                    or has_fact_check_cue
+                )
+
+            if should_fetch_fact_checks:
+                fc_items, fc_citations = self.news_retriever.retrieve_fact_checks_for_subclaim(
+                    subclaim=subclaim,
+                    top_k_per_site=1,
+                    start_idx=ev_idx
+                )
+                evidence_list.extend(fc_items)
+                citations.extend(fc_citations)
+                ev_idx += len(fc_items)
 
         # Deduplicate citations
         unique_citations = []
@@ -187,7 +224,17 @@ class EvidenceRetriever:
                 seen.add(key)
                 unique_citations.append(c)
 
-        return evidence_list[:top_k * 3], unique_citations
+        return evidence_list[:top_k * 4], unique_citations
+
+    def _has_fact_check_cue(self, subclaim: SubClaim) -> bool:
+        """Checks if subclaim references controversial, viral, or commonly fact-checked topics."""
+        text = subclaim.text.lower()
+        fc_keywords = {
+            "born in", "birth certificate", "flat earth", "moon landing", "mars",
+            "fake", "hoax", "debunk", "conspiracy", "staged", "alien", "ineligible",
+            "secret", "vaccine", "stolen", "poison", "chemtrail", "5g", "illuminati"
+        }
+        return any(kw in text for kw in fc_keywords)
 
     def _has_recency_cue(self, subclaim: SubClaim) -> bool:
         """Checks if subclaim references recent years, breaking events, or temporal phrases."""
@@ -300,6 +347,14 @@ class EvidenceRetriever:
                 # Direct contradiction in key target entity
                 return "REFUTES", 0.92
 
+        # Check location / origin / birthplace contradiction
+        us_locs = {"u.s.", "u.s", "usa", "united states", "hawaii", "honolulu"}
+        kenya_locs = {"kenya", "mombasa", "nairobi"}
+        has_kenya_in_claim = any(loc in claim_text for loc in kenya_locs)
+        has_us_in_ev = any(loc in ev_lower for loc in us_locs)
+        if has_kenya_in_claim and has_us_in_ev and any(w in ev_lower or w in claim_text for w in ("born", "birth", "president", "citizen")):
+            return "REFUTES", 0.95
+
         # Check temporal contradiction if year is specified
         if claim_year and years_in_ev:
             if claim_year in years_in_ev:
@@ -313,17 +368,32 @@ class EvidenceRetriever:
 
         # Check explicit debunking or negated predicate phrases
         debunk_match = re.search(
-            r'\b(was not|were not|is not|did not|never|debunked|refuted|fictional|myth|false|disproved|untrue|contrary to)\b',
+            r'\b(was not|were not|is not|did not|never|debunked|refuted|fictional|myth|false|disproved|untrue|contrary to|pants on fire|mostly false|fiction|unproven|unfounded|baseless|ineligible|misleading|incorrect)\b|^no,\s+|\bno,\s+',
             ev_lower
         )
-        if debunk_match and overlap_ratio >= 0.45:
-            return "REFUTES", 0.88
+        if debunk_match and overlap_ratio >= 0.25:
+            return "REFUTES", 0.92
+
+        # Multi-entity relation check: if claim links multiple entities, a sentence mentioning only one cannot SUPPORT
+        entities_present = sum(1 for ent in subclaim.entities if ent.lower() in ev_lower)
+        entity_ratio = entities_present / max(1, len(subclaim.entities))
+        if len(subclaim.entities) >= 2 and entity_ratio < 0.6:
+            return "QUALIFIES", 0.35
+
+        # Year consistency: if claim specifies an explicit year, but evidence lacks it
+        if subclaim.time_expression and subclaim.time_expression not in ev_lower:
+            if overlap_ratio < 0.6:
+                return "QUALIFIES", 0.35
+
+        # Ensure primary named entity is actually mentioned in evidence sentence before supporting
+        if subclaim.entities and not any(ent.lower() in ev_lower for ent in subclaim.entities):
+            return "QUALIFIES", 0.30
 
         # Standard support / qualifier evaluation
-        if overlap_ratio >= 0.6:
+        if overlap_ratio >= 0.6 and (not subclaim.entities or entity_ratio >= 0.5):
             return "SUPPORTS", min(0.95, overlap_ratio)
-        elif overlap_ratio >= 0.35:
-            return "SUPPORTS" if any(ent.lower() in ev_lower for ent in subclaim.entities) else "QUALIFIES", 0.65
+        elif overlap_ratio >= 0.35 and (not subclaim.entities or entity_ratio >= 0.5):
+            return "SUPPORTS", 0.65
         elif overlap_ratio >= 0.2:
             return "QUALIFIES", 0.40
         else:

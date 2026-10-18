@@ -61,4 +61,23 @@ class TrustEngine:
                     {"url": url, "score": baseline}
                 )
 
+        # Boost fact-checker sources to higher authority in the graph
+        try:
+            boost_res = g.query("""
+                MATCH (s:Source)
+                WHERE s.source_type = 'fact_checker'
+                   OR s.url CONTAINS 'snopes.com'
+                   OR s.url CONTAINS 'politifact.com'
+                   OR s.url CONTAINS 'factcheck.org'
+                SET s.pagerank = CASE
+                    WHEN coalesce(s.pagerank, 0.5) < 0.85 THEN 0.90
+                    ELSE s.pagerank * 1.15
+                END
+                RETURN s.url, s.pagerank
+            """).result_set
+            for brow in boost_res:
+                scores[brow[0]] = round(float(brow[1]), 4)
+        except Exception:
+            pass
+
         return scores

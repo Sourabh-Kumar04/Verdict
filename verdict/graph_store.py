@@ -6,6 +6,7 @@ Implements load-bearing graph schema for Claims, Evidence, and Sources.
 from __future__ import annotations
 from typing import Any, Dict, List, Optional
 from falkordb import FalkorDB, Graph
+from redis.exceptions import ConnectionError as RedisConnectionError, RedisError
 
 from verdict.claim_decomposer import SubClaim
 from verdict.retriever import EvidenceItem, CitationLink
@@ -34,6 +35,11 @@ def flatten_properties(props: Dict[str, Any], prefix: str = "") -> Dict[str, Any
     return flat
 
 
+class FalkorDBConnectionError(ConnectionError):
+    """Raised when FalkorDB graph database is unreachable or connection fails."""
+    pass
+
+
 class GraphStore:
     """
     Manages the FalkorDB evidence graph.
@@ -50,8 +56,29 @@ class GraphStore:
         self.host = host
         self.port = port
         self.graph_name = graph_name
-        self.client = FalkorDB(host=self.host, port=self.port, password=password)
-        self.graph: Graph = self.client.select_graph(self.graph_name)
+        try:
+            self.client = FalkorDB(host=self.host, port=self.port, password=password)
+            self.graph: Graph = self.client.select_graph(self.graph_name)
+        except (RedisConnectionError, ConnectionError, OSError, RedisError) as e:
+            raise FalkorDBConnectionError(
+                f"FalkorDB is unreachable at {self.host}:{self.port}. "
+                f"Ensure the FalkorDB Docker container is running:\n"
+                f"  docker run -d -p 6379:6379 -p 3000:3000 --name falkordb-verdict falkordb/falkordb:6.0.1"
+            ) from e
+
+    def check_connection(self) -> bool:
+        """
+        Pings FalkorDB to verify connectivity.
+        Raises FalkorDBConnectionError with actionable resolution instructions if unreachable.
+        """
+        try:
+            return bool(self.client.connection.ping())
+        except (RedisConnectionError, ConnectionError, OSError, RedisError) as e:
+            raise FalkorDBConnectionError(
+                f"FalkorDB is unreachable at {self.host}:{self.port}. "
+                f"Ensure the FalkorDB Docker container is running:\n"
+                f"  docker run -d -p 6379:6379 -p 3000:3000 --name falkordb-verdict falkordb/falkordb:6.0.1"
+            ) from e
 
     def delete_graph(self) -> bool:
         """
@@ -121,15 +148,20 @@ class GraphStore:
         url: str,
         name: str,
         source_type: str,
-        initial_pagerank: float = 0.5
+        initial_pagerank: Optional[float] = None
     ) -> None:
-        """Creates or updates a Source node."""
+        """Creates or updates a Source node with authority weighting."""
+        if initial_pagerank is None:
+            initial_pagerank = 0.90 if source_type == "fact_checker" else 0.50
+
         q = """
         MERGE (s:Source {url: $url})
         ON CREATE SET s.name = $name,
                       s.source_type = $source_type,
                       s.pagerank = $pagerank
-        ON MATCH SET s.name = $name
+        ON MATCH SET s.name = $name,
+                     s.source_type = CASE WHEN $source_type = 'fact_checker' THEN 'fact_checker' ELSE s.source_type END,
+                     s.pagerank = CASE WHEN $source_type = 'fact_checker' AND s.pagerank < 0.85 THEN 0.90 ELSE s.pagerank END
         RETURN s.url
         """
         self.graph.query(q, {
